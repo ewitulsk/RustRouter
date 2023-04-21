@@ -1,0 +1,3 @@
+[submodule "contracts/aptos/pairs/pancake/pancake-source"]
+	path = contracts/aptos/pairs/pancake/pancake-source
+	url = https://github.com/pancakeswap/pancake-contracts-move.git
