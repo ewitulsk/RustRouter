@@ -1,14 +1,26 @@
-mod pancake_pair;
+use self::pancake_pair::PancakePair;
+
+use serde::{Serialize, Deserialize};
+
+
+pub mod pancake_pair;
 
 pub trait Descriptor {
-    fn get_descriptor(&self) -> String;
+    fn to_json(&self) -> String;
 }
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Pair {
-    protocol: String,
-    swap_type: String,
-    pair_key: String,
-    pool_addr: String,
-    token_arr: Vec<String>,
-    router_pair_add: String,
+    pub network: String,
+    pub protocol: String,
+    pub swap_type: String,
+    pub pair_key: String,
+    pub pool_addr: String,
+    pub token_arr: Vec<String>,
+    pub router_pair_addr: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub enum PairTypes {
+    PancakePair(PancakePair)
 }

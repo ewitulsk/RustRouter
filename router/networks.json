@@ -1,0 +1,13 @@
+{
+    "aptos_mainnet": {
+        "name": "aptos_mainnet",
+        "http": "https://fullnode.mainnet.aptoslabs.com/v1",
+        "chain_id": 1
+    },
+
+    "aptos_devnet": {
+        "name": "aptos_devnet",
+        "http": "https://fullnode.devnet.aptoslabs.com/v1",
+        "chain_id": 1
+    }
+}
