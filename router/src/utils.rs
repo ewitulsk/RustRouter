@@ -8,17 +8,44 @@ use reqwest::blocking::{Client, Response};
 use aptos_sdk::types::network_address;
 use serde_json::json;
 
-use crate::pairs::{PairTypes, Pair};
+use crate::pairs::pancake_pair::PancakePair;
+use crate::pairs::{PairTypes, Pair, Descriptor, self};
 use crate::types::{Network, NetworkReference};
 
 pub fn read_pair_descriptors() -> Vec<PairTypes> {
     let data: String = fs::read_to_string("descriptors.json").expect("Failed to read file");
-    let descriptors: Vec<PairTypes> = serde_json::from_str(&data).unwrap();
+    let pairs: Vec<Pair> = serde_json::from_str(&data).unwrap();
+    let mut typed_pairs:Vec<PairTypes> = Vec::new();
 
-    return descriptors;
+
+    for pair in pairs {
+        match pair.protocol.as_str() {
+            "pancake" => {
+                typed_pairs.push(
+                    PairTypes::PancakePair(
+                        PancakePair {
+                            base: pair,
+                            metadata: None
+                        }
+                    )
+                )
+            }
+            _ => {
+                println!("Unknown Pair");
+            }
+        }
+    }
+
+
+    return typed_pairs;
 }
 
-pub fn write_pair_descriptors(pairs: Vec<PairTypes>) {
+pub fn write_pair_descriptors(typed_pairs: &Vec<PairTypes>) {
+    let mut pairs:Vec<Pair> = Vec::new();
+    for typed_pair in typed_pairs {
+        pairs.push(typed_pair.get_pair());
+    }
+
     let data = json!(pairs);
 
     let json_str = data.to_string();
@@ -35,10 +62,20 @@ where
     s.parse::<u64>().map_err(serde::de::Error::custom)
 }
 
+pub fn string_to_u128<'de, D>(deserializer: D) -> Result<u128, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    s.parse::<u128>().map_err(serde::de::Error::custom)
+}
+
 pub fn query_aptos_events_raw(
     network_address: &str,
     account: &str,
-    event: &str
+    event: &str,
+    start: u64,
+    limit: u64
 ) -> String {
 
     // https://fullnode.mainnet.aptoslabs.com/v1 <-- Network Address
@@ -53,6 +90,64 @@ pub fn query_aptos_events_raw(
     query.push_str(account);
     query.push_str("/events/");
     query.push_str(event);
+    query.push_str("?start=");
+    query.push_str(start.to_string().as_str());
+    query.push_str("&limit=");
+    query.push_str(limit.to_string().as_str());
+
+    let client = Client::new();
+
+    let resp: Response = client.get(query).send().unwrap();
+    let mut body: String = String::new();
+    if resp.status().is_success() {
+        body = resp.text().unwrap();
+        // println!("{}", body);
+    }
+    else {
+        println!("Faild with status code: {}", resp.status());
+    }
+    return body;
+   
+}
+
+pub fn query_aptos_resources_raw(
+    network_address: &str,
+    account: &str,
+    resource: &str
+) -> String {
+
+    let mut query = String::new();
+    query.push_str(network_address);
+    query.push_str("/accounts/");
+    query.push_str(account);
+    query.push_str("/resource/");
+    query.push_str(resource);
+
+    let client = Client::new();
+
+    let resp: Response = client.get(query).send().unwrap();
+    let mut body: String = String::new();
+    if resp.status().is_success() {
+        body = resp.text().unwrap();
+        // println!("{}", body);
+    }
+    else {
+        println!("Faild with status code: {}", resp.status());
+    }
+    return body;
+   
+}
+
+pub fn query_aptos_resources_all_raw(
+    network_address: &str,
+    account: &str,
+) -> String {
+
+    let mut query = String::new();
+    query.push_str(network_address);
+    query.push_str("/accounts/");
+    query.push_str(account);
+    query.push_str("/resources");
 
     let client = Client::new();
 

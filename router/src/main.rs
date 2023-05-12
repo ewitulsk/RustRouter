@@ -1,10 +1,12 @@
 use std::str;
+use std::mem;
 
 use aptos_sdk::{
     rest_client::Client
 };
 
-use crate::{types::Network, pairs::{PairTypes, Pair}, manager::Manager, utils::{write_pair_descriptors, read_pair_descriptors}};
+use crate::registrys::_test_get_metadata;
+use crate::{types::Network, pairs::{PairTypes, Pair, pancake_pair::PancakePair, Refresh}, manager::Manager, utils::{write_pair_descriptors, read_pair_descriptors}};
 
 mod pairs;
 mod manager;
@@ -36,20 +38,40 @@ fn main() {
     // token_arr: Vec<String>,
     // router_pair_add: String,
 
-    let pairs: Vec<PairTypes> = registrys::gen_all_pairs(network);
+    // let pairs: Vec<PairTypes> = registrys::gen_all_pairs(network);
 
 
-    manager.add_pairs(pairs);
-
-    write_pair_descriptors(manager.managed_pairs);
-    let read_pairs: Vec<PairTypes> = read_pair_descriptors();
-
-    for pair_type in read_pairs {
-        match pair_type {
-            PairTypes::PancakePair(pair) => println!("Protocol: {}, SwapType: {}, PairKey: {}, PoolAddr: {}, routerPairAddr: {}", 
-            pair.base.protocol, pair.base.swap_type, pair.base.pair_key, pair.base.pool_addr, pair.base.router_pair_addr)
-        };
-    }
+    // manager.add_pairs(pairs);
 
     
+    
+    // write_pair_descriptors(&manager.managed_pairs);
+    
+
+    // let mut read_pairs: Vec<PairTypes> = read_pair_descriptors().clone();
+
+    // manager.refresh_pairs();
+
+    // let enum_pair = read_pairs[0].clone();
+
+    // println!("Amount: {}", read_pairs.len());
+    
+
+
+    //TODO!!!
+    //Make registry class
+    //add traits for get_pairs and get_metadata
+    //make all metadata feilds optional
+    //make managers refresh pairs call get_metada
+    //maybe move pair generation to manager?
+    
+
+
+
+    let map = _test_get_metadata(network);
+
+    let meta_test = map.get(&String::from("<0x1::aptos_coin::AptosCoin, 0xa1ea1833696326fbef7d135a4fa318e4cf3f3365329b145ee37969628c8ee7bb::LeagueOfShogunsToken::LeagueOfShoguns>")).unwrap();
+
+    println!("BalX: {}, BalY: {}, K: {}", &meta_test.reserves[0], &meta_test.reserves[1], &meta_test.last_k);
+
 }

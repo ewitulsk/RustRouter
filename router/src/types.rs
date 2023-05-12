@@ -13,3 +13,4 @@ pub struct Network {
     pub http: String,
     pub chain_id: u64
 }
+
