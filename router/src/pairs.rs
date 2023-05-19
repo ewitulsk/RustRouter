@@ -1,5 +1,6 @@
 use self::pancake_pair::PancakePair;
 
+use aptos_sdk::move_types::metadata;
 use serde::{Serialize, Deserialize};
 
 
@@ -10,19 +11,14 @@ pub trait Descriptor {
 }
 
 pub trait OutputAmount {
-    fn output_amount(&self) -> u64;
+    fn output_amount(&self, input_amount: u64, token_in: String, token_out: String) -> u64;
 }
-
-pub trait Refresh {
-    fn refresh_pair(&mut self);
-}
-
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Pair {
     pub network: String,
     pub protocol: String,
-    pub swap_type: String,
+    pub pair_name: PairNames,
     pub pair_key: String,
     pub pool_addr: String,
     pub token_arr: Vec<String>,
@@ -30,28 +26,19 @@ pub struct Pair {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct Metadata {
-    pub reserves: Vec<u64>,
-    pub last_k: u128
-}
-
-#[derive(Serialize, Deserialize, Clone)]
 pub enum PairTypes {
     PancakePair(PancakePair)
+}
+
+#[derive(Serialize, Deserialize, Clone, Eq, Hash, PartialEq)]
+pub enum PairNames {
+    PancakePair
 }
 
 impl Descriptor for PairTypes {
     fn get_pair(&self) -> Pair {
         match self {
             PairTypes::PancakePair(pair) => pair.base.clone()
-        }
-    }
-}
-
-impl Refresh for PairTypes {
-    fn refresh_pair(&mut self) {
-        match self {
-            PairTypes::PancakePair(pair) => pair.refresh_pair()
         }
     }
 }

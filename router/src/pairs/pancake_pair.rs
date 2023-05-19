@@ -1,13 +1,21 @@
+use core::num;
+
 use crate::utils::{get_network, query_aptos_resources_raw, string_to_u128, string_to_u64};
 
-use super::{Descriptor, Pair, OutputAmount, Refresh, Metadata};
+use super::{Descriptor, Pair, OutputAmount};
 
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Clone)]
+pub struct PancakeMetadata {
+    pub reserves: Option<Vec<u64>>,
+    // pub last_k: Option<u128>
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct PancakePair {
     pub base: Pair,
-    pub metadata: Option<Metadata>
+    pub metadata: PancakeMetadata
 }
 
 // impl Descriptor for PancakePair {
@@ -16,38 +24,27 @@ pub struct PancakePair {
 //     }
 // }
 
-// impl OutputAmount for PancakePair {
-//     fn output_amount(&self) -> u64 {
-//         const PRECISION: u64 = 10000;
-//         const MAX_U128: u128 = 340282366920938463463374607431768211455;
+/*
+    assert!(amount_in > 0, ERROR_INSUFFICIENT_INPUT_AMOUNT);
+    assert!(reserve_in > 0 && reserve_out > 0, ERROR_INSUFFICIENT_LIQUIDITY);
 
+    let amount_in_with_fee = (amount_in as u128) * 9975u128;
+    let numerator = amount_in_with_fee * (reserve_out as u128);
+    let denominator = (reserve_in as u128) * 10000u128 + amount_in_with_fee;
+    ((numerator / denominator) as u64)
+ */
 
-//     }
-// }
-
-impl Refresh for PancakePair {
-    fn refresh_pair(&mut self) {
-        let network = get_network(self.base.network.clone()).unwrap();
-
-        let network_http = &network.http[..];
-
-        let account = "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa";
-        let resource = format!("{}::swap::TokenPairMetadata<{}, {}>", account, self.base.token_arr[0], self.base.token_arr[1]);
+impl OutputAmount for PancakePair {
+    fn output_amount(&self, input_amount: u64, token_in: String, token_out: String) -> u64 {
+        let in_index = self.base.token_arr.iter().position(|x| x == &token_in).unwrap();
+        let out_index = self.base.token_arr.iter().position(|x| x == &token_out).unwrap();
+        let reserve_out = self.metadata.reserves.as_ref().unwrap()[out_index];
+        let reserve_in = self.metadata.reserves.as_ref().unwrap()[in_index];
+        let amount_in_with_fee = (input_amount as u128) * 9975u128;
+        let numerator = amount_in_with_fee * (reserve_out as u128);
+        let denominator = ((reserve_in as u128) * 10000u128) + amount_in_with_fee;
+        let amount_out = (numerator / denominator) as u64; 
         
-        let raw_data = query_aptos_resources_raw(network_http, account, &resource);
-
-        let val: serde_json::Value = serde_json::from_str(&raw_data).unwrap();
-
-        let data = val.get("data").unwrap();
-        let last_k = data.get("k_last").unwrap().as_str().unwrap().parse::<u128>().unwrap(); //Who needs error handling?
-        let bal_x = data.get("balance_x").unwrap().get("value").unwrap().as_str().unwrap().parse::<u64>().unwrap();
-        let bal_y = data.get("balance_y").unwrap().get("value").unwrap().as_str().unwrap().parse::<u64>().unwrap();
-
-        let metadata = Metadata {
-            last_k: last_k,
-            reserves: vec![bal_x, bal_y]
-        };
-
-        self.metadata = Some(metadata);
+        return amount_out;
     }
 }

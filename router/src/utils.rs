@@ -8,9 +8,20 @@ use reqwest::blocking::{Client, Response};
 use aptos_sdk::types::network_address;
 use serde_json::json;
 
-use crate::pairs::pancake_pair::PancakePair;
+use crate::pairs::pancake_pair::{PancakePair, PancakeMetadata};
 use crate::pairs::{PairTypes, Pair, Descriptor, self};
 use crate::types::{Network, NetworkReference};
+
+pub fn decimal_to_u64(float_val: f64, decimals: i32) -> u64 {
+    let multiplier = 10f64.powi(decimals);
+    return (float_val * multiplier) as u64
+} 
+
+pub fn u64_to_decimal(val: u64, decimals: i32) -> f64 {
+    let float_val = val as f64;
+    let divisor = 10f64.powi(decimals);
+    return (float_val/divisor);
+}
 
 pub fn read_pair_descriptors() -> Vec<PairTypes> {
     let data: String = fs::read_to_string("descriptors.json").expect("Failed to read file");
@@ -25,7 +36,10 @@ pub fn read_pair_descriptors() -> Vec<PairTypes> {
                     PairTypes::PancakePair(
                         PancakePair {
                             base: pair,
-                            metadata: None
+                            metadata: PancakeMetadata {
+                                reserves: None,
+                                // last_k: None
+                            }
                         }
                     )
                 )

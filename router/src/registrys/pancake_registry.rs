@@ -1,7 +1,9 @@
 use std::{collections::HashMap, hash::Hash};
 
-use crate::{types::{Network}, pairs::{Pair, PairTypes, Metadata, pancake_pair::{PancakePair}}, utils::{query_aptos_events_raw, string_to_u64, query_aptos_resources_all_raw}};
+use crate::{types::{Network}, pairs::{Pair, PairTypes, pancake_pair::{PancakePair, PancakeMetadata}, PairNames}, utils::{query_aptos_events_raw, string_to_u64, query_aptos_resources_all_raw}};
 use serde::{Serialize, Deserialize};
+
+use super::{Populate, Registry};
 
 //         "version": "126524019",
 //         "guid": {
@@ -32,7 +34,7 @@ struct Data {
 }
 
 #[derive(Serialize, Deserialize)]
-struct PancakeData {
+pub struct PancakeData {
     #[serde(deserialize_with = "string_to_u64")]
     version: u64,
     guid: GUID,
@@ -43,56 +45,115 @@ struct PancakeData {
     data: Data
 }
 
-
-pub fn get_pairs(network: Network) -> Vec<PairTypes>{
-    let network_http = &network.http[..];
-    let network_name = &network.name[..];
-
-    let account = "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa";
-    let event = "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa::swap::SwapInfo/pair_created";
-    
-    let mut all_pancake_pairs:Vec<PairTypes> = Vec::new();
-
-    let mut query: bool = true;
-    let mut start: u64 = 0;
-    while query {
-        let raw_data = query_aptos_events_raw(network_http, account, event, start, 100);
-        let data: Vec<PancakeData> = serde_json::from_str(&raw_data).unwrap();
-
-        if data.len() < 100 {
-            query = false;
-        }
-
-
-        for pair_data in data {
-            // println!("X: {} Y: {}", pair_data.data.token_x, pair_data.data.token_y);
-            let pair_key = format!("{}{}{}", account, pair_data.data.token_x, pair_data.data.token_y);
-
-            let pair = Pair {
-                network: String::from(network_name),
-                protocol: String::from("pancake"),
-                swap_type: String::from("UniV2"),
-                pair_key: String::from(pair_key),
-                pool_addr: String::from(account),
-                token_arr: Vec::from([pair_data.data.token_x, pair_data.data.token_y]),
-                router_pair_addr: String::new()
-            };
-
-            let pancake_pair = PancakePair {
-                base: pair,
-                metadata: None
-            };
-
-            all_pancake_pairs.push(PairTypes::PancakePair(pancake_pair));
-        }
-
-        start += 100;
-    };
-
-    return all_pancake_pairs;
+#[derive(Clone)]
+pub struct PancakeRegistry {
+    pub registry: Registry,
+    pub metadata_map: HashMap<String, PancakeMetadata>
 }
 
-pub fn get_metadata(network: Network) -> HashMap<String, Metadata> {
+impl Populate for PancakeRegistry {
+    fn get_pairs(&mut self) -> Vec<PairTypes>{
+        let network: &Network = &self.registry.network;
+        let network_http = &network.http[..];
+        let network_name = &network.name[..];
+    
+        let account = "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa";
+        let event = "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa::swap::SwapInfo/pair_created";
+        
+        let mut all_pancake_pairs:Vec<PairTypes> = Vec::new();
+    
+        let mut query: bool = true;
+        let mut start: u64 = 0;
+        while query {
+            let raw_data = query_aptos_events_raw(network_http, account, event, start, 100);
+            let data: Vec<PancakeData> = serde_json::from_str(&raw_data).unwrap();
+    
+            if data.len() < 100 {
+                query = false;
+            }
+    
+    
+            for pair_data in data {
+                // println!("X: {} Y: {}", pair_data.data.token_x, pair_data.data.token_y);
+                let pair_key = format!("{}{}{}", account, pair_data.data.token_x, pair_data.data.token_y);
+    
+                let pair = Pair {
+                    network: String::from(network_name),
+                    protocol: String::from("pancake"),
+                    pair_name: PairNames::PancakePair,
+                    pair_key: String::from(pair_key),
+                    pool_addr: String::from(account),
+                    token_arr: Vec::from([pair_data.data.token_x, pair_data.data.token_y]),
+                    router_pair_addr: String::new()
+                };
+    
+                let pancake_pair = PancakePair {
+                    base: pair,
+                    metadata: PancakeMetadata {
+                        reserves: None,
+                        // last_k: None
+                    }
+                };
+    
+                all_pancake_pairs.push(PairTypes::PancakePair(pancake_pair));
+            }
+    
+            start += 100;
+        };
+
+        self.registry.pairs = Some(all_pancake_pairs.clone());
+        return all_pancake_pairs;
+    }
+
+    fn get_metadata(&mut self) {
+        let network = &self.registry.network;
+        let network_http = &network.http[..];
+        let network_name = &network.name[..];
+    
+        let account = "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa";
+    
+        let all_resources_raw = query_aptos_resources_all_raw(network_http, account);
+    
+        let all_resources:Vec<serde_json::Value> = serde_json::from_str(&all_resources_raw).unwrap();
+    
+        let mut metadata_map: HashMap<String, PancakeMetadata> = HashMap::new();
+    
+        let mut count = 0;
+        for resource in all_resources {
+            let _type = resource.get("type").unwrap().as_str().unwrap();
+            if _type.contains(&format!("{}::swap::TokenPairReserve", account)) {
+                let token_names = String::from(&_type[90..]);
+    
+                let data = resource.get("data").unwrap();
+                // let last_k = data.get("k_last").unwrap().as_str().unwrap().parse::<u128>().unwrap(); //Who needs error handling?
+                let res_x = data.get("reserve_x").unwrap().get("value").unwrap().as_str().unwrap().parse::<u64>().unwrap();
+                let res_y = data.get("reserve_y").unwrap().get("value").unwrap().as_str().unwrap().parse::<u64>().unwrap();
+    
+                let metadata = PancakeMetadata {
+                    // last_k: Some(last_k),
+                    reserves: Some(vec![res_x, res_y])
+                };
+    
+                metadata_map.insert(token_names.clone(), metadata);
+    
+                count += 1;
+                // println!("{}\n", token_names);
+            }
+    
+            
+            // let data = resource.get("data").unwrap();
+        }
+        println!("Total: {}", count);
+        
+        self.metadata_map = metadata_map.clone();
+    }
+
+    
+}
+
+
+
+pub fn get_pancake_metadata(network: Network) -> HashMap<String, PancakeMetadata>{
     let network_http = &network.http[..];
     let network_name = &network.name[..];
 
@@ -102,35 +163,34 @@ pub fn get_metadata(network: Network) -> HashMap<String, Metadata> {
 
     let all_resources:Vec<serde_json::Value> = serde_json::from_str(&all_resources_raw).unwrap();
 
-    let mut metadata_map: HashMap<String, Metadata> = HashMap::new();
+    let mut metadata_map: HashMap<String, PancakeMetadata> = HashMap::new();
 
     let mut count = 0;
     for resource in all_resources {
         let _type = resource.get("type").unwrap().as_str().unwrap();
-        if _type.contains(&format!("{}::swap::TokenPairMetadata", account)) {
-            let token_names = String::from(&_type[91..]);
+        if _type.contains(&format!("{}::swap::TokenPairReserve", account)) {
+            let token_names = String::from(&_type[90..]);
 
             let data = resource.get("data").unwrap();
-            let last_k = data.get("k_last").unwrap().as_str().unwrap().parse::<u128>().unwrap(); //Who needs error handling?
-            let bal_x = data.get("balance_x").unwrap().get("value").unwrap().as_str().unwrap().parse::<u64>().unwrap();
-            let bal_y = data.get("balance_y").unwrap().get("value").unwrap().as_str().unwrap().parse::<u64>().unwrap();
+            // let last_k = data.get("k_last").unwrap().as_str().unwrap().parse::<u128>().unwrap(); //Who needs error handling?
+            let res_x = data.get("reserve_x").unwrap().as_str().unwrap().parse::<u64>().unwrap();
+            let res_y = data.get("reserve_y").unwrap().as_str().unwrap().parse::<u64>().unwrap();
 
-            let metadata = Metadata {
-                last_k: last_k,
-                reserves: vec![bal_x, bal_y]
+            let metadata = PancakeMetadata {
+                // last_k: Some(last_k),
+                reserves: Some(vec![res_x, res_y])
             };
 
             metadata_map.insert(token_names.clone(), metadata);
 
             count += 1;
-            println!("{}\n", token_names);
+            // println!("{}\n", token_names);
         }
 
         
         // let data = resource.get("data").unwrap();
     }
     println!("Total: {}", count);
-
     
-    return metadata_map;
+    return metadata_map.clone();
 }
