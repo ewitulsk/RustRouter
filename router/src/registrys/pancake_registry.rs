@@ -71,18 +71,14 @@ impl Registry for PancakeRegistry {
                 // println!("X: {} Y: {}", pair_data.data.token_x, pair_data.data.token_y);
                 let pair_key = format!("{}{}{}", account, pair_data.data.token_x, pair_data.data.token_y);
     
-                let pair = Pair {
+                let pancake_pair = PancakePair {
                     network: String::from(network_name),
                     protocol: String::from("pancake"),
                     pair_name: PairNames::PancakePair,
                     pair_key: String::from(pair_key),
                     pool_addr: String::from(account),
                     token_arr: Vec::from([pair_data.data.token_x, pair_data.data.token_y]),
-                    router_pair_addr: String::new()
-                };
-    
-                let pancake_pair = PancakePair {
-                    base: pair,
+                    router_pair_addr: String::new(),
                     metadata: PancakeMetadata {
                         reserves: None,
                     }

@@ -9,7 +9,7 @@ use aptos_sdk::types::network_address;
 use serde_json::json;
 
 use crate::pairs::pancake_pair::{PancakePair, PancakeMetadata};
-use crate::pairs::{PairTypes, Pair, Descriptor, self};
+use crate::pairs::{PairTypes, Pair, self};
 use crate::types::{Network, NetworkReference};
 
 pub fn decimal_to_u64(float_val: f64, decimals: i32) -> u64 {
@@ -23,50 +23,50 @@ pub fn u64_to_decimal(val: u64, decimals: i32) -> f64 {
     return (float_val/divisor);
 }
 
-pub fn read_pair_descriptors() -> Vec<PairTypes> {
-    let data: String = fs::read_to_string("descriptors.json").expect("Failed to read file");
-    let pairs: Vec<Pair> = serde_json::from_str(&data).unwrap();
-    let mut typed_pairs:Vec<PairTypes> = Vec::new();
+// pub fn read_pair_descriptors() -> Vec<PairTypes> {
+//     let data: String = fs::read_to_string("descriptors.json").expect("Failed to read file");
+//     let pairs: Vec<Pair> = serde_json::from_str(&data).unwrap();
+//     let mut typed_pairs:Vec<PairTypes> = Vec::new();
 
 
-    for pair in pairs {
-        match pair.protocol.as_str() {
-            "pancake" => {
-                typed_pairs.push(
-                    PairTypes::PancakePair(
-                        PancakePair {
-                            base: pair,
-                            metadata: PancakeMetadata {
-                                reserves: None,
-                                // last_k: None
-                            }
-                        }
-                    )
-                )
-            }
-            _ => {
-                println!("Unknown Pair");
-            }
-        }
-    }
+//     for pair in pairs {
+//         match pair.protocol.as_str() {
+//             "pancake" => {
+//                 typed_pairs.push(
+//                     PairTypes::PancakePair(
+//                         PancakePair {
+//                             base: pair,
+//                             metadata: PancakeMetadata {
+//                                 reserves: None,
+//                                 // last_k: None
+//                             }
+//                         }
+//                     )
+//                 )
+//             }
+//             _ => {
+//                 println!("Unknown Pair");
+//             }
+//         }
+//     }
 
 
-    return typed_pairs;
-}
+//     return typed_pairs;
+// }
 
-pub fn write_pair_descriptors(typed_pairs: &Vec<PairTypes>) {
-    let mut pairs:Vec<Pair> = Vec::new();
-    for typed_pair in typed_pairs {
-        pairs.push(typed_pair.get_pair());
-    }
+// pub fn write_pair_descriptors(pairs: &Vec<dyn Pair>) {
+//     let mut pairs:Vec<dyn Pair> = Vec::new();
+//     for typed_pair in typed_pairs {
+//         pairs.push(typed_pair.get_pair());
+//     }
 
-    let data = json!(pairs);
+//     let data = json!(pairs);
 
-    let json_str = data.to_string();
+//     let json_str = data.to_string();
 
-    fs::write("descriptors.json", json_str);
+//     fs::write("descriptors.json", json_str);
 
-}
+// }
 
 pub fn string_to_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where

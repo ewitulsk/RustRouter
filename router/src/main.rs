@@ -8,7 +8,6 @@ use aptos_sdk::{
     rest_client::Client
 };
 
-use crate::pairs::OutputAmount;
 use crate::pairs::PairMetadata;
 use crate::pairs::PairNames;
 use crate::pairs::pancake_pair;
@@ -21,7 +20,7 @@ use crate::registrys::set_all_metadata;
 use crate::registrys::update_pairs;
 use crate::utils::decimal_to_u64;
 use crate::utils::u64_to_decimal;
-use crate::{types::Network, pairs::{PairTypes, Pair, pancake_pair::PancakePair}, utils::{write_pair_descriptors, read_pair_descriptors}};
+use crate::{types::Network, pairs::{PairTypes, Pair, pancake_pair::PancakePair}};
 
 mod pairs;
 // mod manager;
@@ -92,7 +91,7 @@ fn main() {
     for pair in &genned_pairs {
         match pair {
             PairTypes::PancakePair(pancake_pair) => {
-                if pancake_pair.base.token_arr.contains(&token_in) && pancake_pair.base.token_arr.contains(&token_out) {
+                if pancake_pair.token_arr.contains(&token_in) && pancake_pair.token_arr.contains(&token_out) {
                     println!("ResX: {}, ResY: {}", (&pancake_pair.metadata.reserves.as_ref()).unwrap()[0], (&pancake_pair.metadata.reserves.as_ref()).unwrap()[1]);
         
                     break;
@@ -107,8 +106,8 @@ fn main() {
     let mut selected_pair = genned_pairs.get_mut(count).unwrap();
     match selected_pair {
         PairTypes::PancakePair(pancake_pair) => {
-            let token_x = &pancake_pair.base.token_arr[0];
-            let token_y = &pancake_pair.base.token_arr[1];
+            let token_x = &pancake_pair.token_arr[0];
+            let token_y = &pancake_pair.token_arr[1];
             println!("ResX: {}, ResY: {}", (&pancake_pair.metadata.reserves.as_ref()).unwrap()[0], (&pancake_pair.metadata.reserves.as_ref()).unwrap()[1]);
 
 

@@ -71,7 +71,7 @@ pub fn update_pairs(pairs: &mut Vec<PairTypes>, metadata_map: &mut HashMap<PairN
             PairTypes::PancakePair(pancake_pair) => {
                 let pancake_metadata_map = &*metadata_map.get(&PairNames::PancakePair).unwrap();
 
-                let identifier = format!("<{}, {}>", pancake_pair.base.token_arr[0], pancake_pair.base.token_arr[1]);
+                let identifier = format!("<{}, {}>", pancake_pair.token_arr[0], pancake_pair.token_arr[1]);
                 if(pancake_metadata_map.contains_key(&identifier)){
                     let pancake_metadata: &PancakeMetadata = &*(*(pancake_metadata_map.get(&identifier).unwrap())).as_any().downcast_ref::<PancakeMetadata>().unwrap();
                     pancake_pair.metadata = pancake_metadata.clone();
