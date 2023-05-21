@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use self::pancake_pair::PancakePair;
 
 use aptos_sdk::move_types::metadata;
@@ -5,6 +7,10 @@ use serde::{Serialize, Deserialize};
 
 
 pub mod pancake_pair;
+
+pub trait PairMetadata {
+    fn as_any(&self) -> &dyn Any;
+}
 
 pub trait Descriptor {
     fn get_pair(&self) -> Pair;

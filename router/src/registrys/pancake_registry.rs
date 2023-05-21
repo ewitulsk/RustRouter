@@ -1,9 +1,9 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, hash::Hash, any::Any};
 
-use crate::{types::{Network}, pairs::{Pair, PairTypes, pancake_pair::{PancakePair, PancakeMetadata}, PairNames}, utils::{query_aptos_events_raw, string_to_u64, query_aptos_resources_all_raw}};
+use crate::{types::{Network}, pairs::{Pair, PairTypes, pancake_pair::{PancakePair, PancakeMetadata}, PairNames, PairMetadata}, utils::{query_aptos_events_raw, string_to_u64, query_aptos_resources_all_raw}};
 use serde::{Serialize, Deserialize};
 
-use super::{Populate, Registry};
+use super::{Registry};
 
 //         "version": "126524019",
 //         "guid": {
@@ -45,15 +45,9 @@ pub struct PancakeData {
     data: Data
 }
 
-#[derive(Clone)]
-pub struct PancakeRegistry {
-    pub registry: Registry,
-    pub metadata_map: HashMap<String, PancakeMetadata>
-}
-
-impl Populate for PancakeRegistry {
-    fn get_pairs(&mut self) -> Vec<PairTypes>{
-        let network: &Network = &self.registry.network;
+pub struct PancakeRegistry {}
+impl Registry for PancakeRegistry {
+    fn get_pairs(&self, network: &Network) -> Vec<PairTypes>{
         let network_http = &network.http[..];
         let network_name = &network.name[..];
     
@@ -91,7 +85,6 @@ impl Populate for PancakeRegistry {
                     base: pair,
                     metadata: PancakeMetadata {
                         reserves: None,
-                        // last_k: None
                     }
                 };
     
@@ -101,12 +94,10 @@ impl Populate for PancakeRegistry {
             start += 100;
         };
 
-        self.registry.pairs = Some(all_pancake_pairs.clone());
         return all_pancake_pairs;
     }
 
-    fn get_metadata(&mut self) {
-        let network = &self.registry.network;
+    fn get_metadata(&self, network: &Network, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >){
         let network_http = &network.http[..];
         let network_name = &network.name[..];
     
@@ -115,9 +106,9 @@ impl Populate for PancakeRegistry {
         let all_resources_raw = query_aptos_resources_all_raw(network_http, account);
     
         let all_resources:Vec<serde_json::Value> = serde_json::from_str(&all_resources_raw).unwrap();
-    
-        let mut metadata_map: HashMap<String, PancakeMetadata> = HashMap::new();
-    
+
+        let mut pancake_map: HashMap<String, Box<dyn PairMetadata>> = HashMap::new();
+        
         let mut count = 0;
         for resource in all_resources {
             let _type = resource.get("type").unwrap().as_str().unwrap();
@@ -125,72 +116,24 @@ impl Populate for PancakeRegistry {
                 let token_names = String::from(&_type[90..]);
     
                 let data = resource.get("data").unwrap();
-                // let last_k = data.get("k_last").unwrap().as_str().unwrap().parse::<u128>().unwrap(); //Who needs error handling?
-                let res_x = data.get("reserve_x").unwrap().get("value").unwrap().as_str().unwrap().parse::<u64>().unwrap();
-                let res_y = data.get("reserve_y").unwrap().get("value").unwrap().as_str().unwrap().parse::<u64>().unwrap();
+                let res_x = data.get("reserve_x").unwrap().as_str().unwrap().parse::<u64>().unwrap();
+                let res_y = data.get("reserve_y").unwrap().as_str().unwrap().parse::<u64>().unwrap();
     
                 let metadata = PancakeMetadata {
-                    // last_k: Some(last_k),
                     reserves: Some(vec![res_x, res_y])
                 };
     
-                metadata_map.insert(token_names.clone(), metadata);
+                pancake_map.insert(token_names.clone(), Box::new(metadata));
     
                 count += 1;
-                // println!("{}\n", token_names);
             }
-    
-            
-            // let data = resource.get("data").unwrap();
         }
         println!("Total: {}", count);
-        
-        self.metadata_map = metadata_map.clone();
+
+        metadata_map.insert(PairNames::PancakePair, pancake_map);
     }
 
     
 }
 
 
-
-pub fn get_pancake_metadata(network: Network) -> HashMap<String, PancakeMetadata>{
-    let network_http = &network.http[..];
-    let network_name = &network.name[..];
-
-    let account = "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa";
-
-    let all_resources_raw = query_aptos_resources_all_raw(network_http, account);
-
-    let all_resources:Vec<serde_json::Value> = serde_json::from_str(&all_resources_raw).unwrap();
-
-    let mut metadata_map: HashMap<String, PancakeMetadata> = HashMap::new();
-
-    let mut count = 0;
-    for resource in all_resources {
-        let _type = resource.get("type").unwrap().as_str().unwrap();
-        if _type.contains(&format!("{}::swap::TokenPairReserve", account)) {
-            let token_names = String::from(&_type[90..]);
-
-            let data = resource.get("data").unwrap();
-            // let last_k = data.get("k_last").unwrap().as_str().unwrap().parse::<u128>().unwrap(); //Who needs error handling?
-            let res_x = data.get("reserve_x").unwrap().as_str().unwrap().parse::<u64>().unwrap();
-            let res_y = data.get("reserve_y").unwrap().as_str().unwrap().parse::<u64>().unwrap();
-
-            let metadata = PancakeMetadata {
-                // last_k: Some(last_k),
-                reserves: Some(vec![res_x, res_y])
-            };
-
-            metadata_map.insert(token_names.clone(), metadata);
-
-            count += 1;
-            // println!("{}\n", token_names);
-        }
-
-        
-        // let data = resource.get("data").unwrap();
-    }
-    println!("Total: {}", count);
-    
-    return metadata_map.clone();
-}

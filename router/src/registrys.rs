@@ -1,42 +1,32 @@
-use std::{collections::HashMap, hash::Hash, vec};
+use std::{collections::HashMap, hash::Hash, vec, any::Any};
 
-use crate::{types::{Network}, pairs::{Pair, PairTypes, PairNames, pancake_pair::PancakeMetadata}, registrys::pancake_registry::{PancakeRegistry}};
+use crate::{types::{Network}, pairs::{Pair, PairTypes, PairNames, pancake_pair::PancakeMetadata, PairMetadata}, registrys::pancake_registry::{PancakeRegistry}};
 
 pub mod pancake_registry;
 
-#[derive(Clone)]
-pub enum RegistryTypes {
-    PancakeRegistry(PancakeRegistry)
+
+pub trait Registry {
+    fn get_pairs(&self, network: &Network) -> Vec<PairTypes>;
+    fn get_metadata(&self, network: &Network, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >);
 }
 
-#[derive(Clone)]
-pub struct Registry {
-    pub network: Network,
-    pub pairs: Option<Vec<PairTypes>>,
-}
+// pub fn all_registrys<'a>(network: Network) -> HashMap<PairNames, RegistryTypes> {
+//     let mut registryMap: HashMap<PairNames, RegistryTypes> = HashMap::new();
 
-pub trait Populate {
-    fn get_pairs(&mut self) -> Vec<PairTypes>;
-    fn get_metadata(&mut self);
-}
-
-pub fn all_registrys<'a>(network: Network) -> HashMap<PairNames, RegistryTypes> {
-    let mut registryMap: HashMap<PairNames, RegistryTypes> = HashMap::new();
-
-    registryMap.insert(PairNames::PancakePair, 
-        RegistryTypes::PancakeRegistry(
-            PancakeRegistry {
-                registry: Registry {
-                    network: network,
-                    pairs: None,
-                },
-                metadata_map: HashMap::new()
-            }
-        )
-    );
+//     registryMap.insert(PairNames::PancakePair, 
+//         RegistryTypes::PancakeRegistry(
+//             PancakeRegistry {
+//                 registry: Registry {
+//                     network: network,
+//                     pairs: None,
+//                 },
+//                 metadata_map: HashMap::new()
+//             }
+//         )
+//     );
     
-    return registryMap;
-}
+//     return registryMap;
+// }
 
 // pub fn gen_pairs_by_token_map(pairs: Vec<PairTypes>) -> HashMap<String, Vec<PairTypes>> {
 //     let pairs_by_token_map:&mut HashMap<String, Vec<PairTypes>> = &mut HashMap::new();
@@ -59,26 +49,34 @@ pub fn all_registrys<'a>(network: Network) -> HashMap<PairNames, RegistryTypes> 
 //     return pairs_by_token_map.clone();
 // }   
 
-pub fn gen_all_pairs<'a>(registrys: Vec<&'a mut RegistryTypes>) -> Vec<&'a mut PairTypes>{
-    let mut pairs: Vec<&mut PairTypes> = Vec::new();
+pub fn gen_all_pairs(network: &Network, registrys: &mut Vec<Box<dyn Registry>>) -> Vec<PairTypes>{
+    let mut pairs: Vec<PairTypes> = Vec::new();
     for registry in registrys {
-        match registry {
-            RegistryTypes::PancakeRegistry(pancake_registry) => {
-                pancake_registry.get_pairs();
-                let pancake_pairs = pancake_registry.registry.pairs.as_mut().unwrap();
-                pairs.extend(pancake_pairs);
-            }
+        for pair in (*registry).get_pairs(network){
+            pairs.push(pair);
         }
     } 
     return pairs;
 }
 
-pub fn set_all_metadata(registrys: &mut HashMap<PairNames, RegistryTypes>) {
-    for (_, registry) in registrys.iter_mut() {
-        match registry {
-            RegistryTypes::PancakeRegistry(registry) => {
-                registry.get_metadata();
-            }
+pub fn set_all_metadata(network: &Network, registrys: &mut Vec<Box<dyn Registry>>, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >) {
+    for registry in registrys {
+       (*registry).get_metadata(network, metadata_map);
+    }
+}
+
+pub fn update_pairs(pairs: &mut Vec<PairTypes>, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >) {
+    for pair in pairs {
+        match pair {
+            PairTypes::PancakePair(pancake_pair) => {
+                let pancake_metadata_map = &*metadata_map.get(&PairNames::PancakePair).unwrap();
+
+                let identifier = format!("<{}, {}>", pancake_pair.base.token_arr[0], pancake_pair.base.token_arr[1]);
+                if(pancake_metadata_map.contains_key(&identifier)){
+                    let pancake_metadata: &PancakeMetadata = &*(*(pancake_metadata_map.get(&identifier).unwrap())).as_any().downcast_ref::<PancakeMetadata>().unwrap();
+                    pancake_pair.metadata = pancake_metadata.clone();
+                }
+            }   
         }
     }
 }

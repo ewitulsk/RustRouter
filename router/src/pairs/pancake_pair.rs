@@ -1,8 +1,9 @@
 use core::num;
+use std::any::Any;
 
 use crate::utils::{get_network, query_aptos_resources_raw, string_to_u128, string_to_u64};
 
-use super::{Descriptor, Pair, OutputAmount};
+use super::{Descriptor, Pair, OutputAmount, PairMetadata};
 
 use serde::{Serialize, Deserialize};
 
@@ -10,6 +11,11 @@ use serde::{Serialize, Deserialize};
 pub struct PancakeMetadata {
     pub reserves: Option<Vec<u64>>,
     // pub last_k: Option<u128>
+}
+impl PairMetadata for PancakeMetadata {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
