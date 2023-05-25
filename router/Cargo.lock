@@ -4755,6 +4755,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "aptos-sdk",
+ "erased-serde",
  "http",
  "reqwest",
  "serde 1.0.160",

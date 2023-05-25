@@ -1,11 +1,25 @@
 use core::num;
-use std::any::Any;
+use std::{any::Any, str::FromStr};
 
 use crate::utils::{get_network, query_aptos_resources_raw, string_to_u128, string_to_u64};
 
-use super::{Pair, PairMetadata, PairNames};
+use super::{Pair, PairMetadata, PairNames, Descriptor};
 
 use serde::{Serialize, Deserialize};
+
+
+#[derive(Serialize, Deserialize)]
+pub struct PancakeDescriptor {
+    pub network: String,
+    pub protocol: String,
+    pub pair_name: PairNames,
+    pub pair_key: String,
+    pub pool_addr: String,
+    pub token_arr: Vec<String>,
+    pub router_pair_addr: String,
+}
+
+impl Descriptor for PancakeDescriptor {}
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PancakeMetadata {
@@ -42,5 +56,20 @@ impl Pair for PancakePair {
         let amount_out = (numerator / denominator) as u64; 
         
         return amount_out;
+    }
+
+    fn get_descriptor(&self) -> Box<dyn Descriptor> {
+        return Box::new(
+            PancakeDescriptor {
+                network: self.network.clone(),
+                protocol: self.protocol.clone(),
+                pair_name: self.pair_name.clone(),
+                pair_key: self.pair_key.clone(),
+                pool_addr: self.pool_addr.clone(),
+                token_arr: self.token_arr.clone(),
+                router_pair_addr: self.router_pair_addr.clone()
+
+            }
+        )
     }
 }

@@ -20,6 +20,7 @@ use crate::registrys::set_all_metadata;
 use crate::registrys::update_pairs;
 use crate::utils::decimal_to_u64;
 use crate::utils::u64_to_decimal;
+// use crate::utils::write_pair_descriptors;
 use crate::{types::Network, pairs::{PairTypes, Pair, pancake_pair::PancakePair}};
 
 mod pairs;
@@ -75,6 +76,8 @@ fn main() {
     metadata_map.insert(PairNames::PancakePair, pancake_metadata_map);
 
     let mut genned_pairs = gen_all_pairs(&network, &mut registry_vec);
+
+    // write_pair_descriptors(&genned_pairs);
 
     set_all_metadata(&network, &mut registry_vec, &mut metadata_map);
 

@@ -9,7 +9,7 @@ use aptos_sdk::types::network_address;
 use serde_json::json;
 
 use crate::pairs::pancake_pair::{PancakePair, PancakeMetadata};
-use crate::pairs::{PairTypes, Pair, self};
+use crate::pairs::{PairTypes, Pair, self, Descriptor};
 use crate::types::{Network, NetworkReference};
 
 pub fn decimal_to_u64(float_val: f64, decimals: i32) -> u64 {
@@ -54,19 +54,27 @@ pub fn u64_to_decimal(val: u64, decimals: i32) -> f64 {
 //     return typed_pairs;
 // }
 
-// pub fn write_pair_descriptors(pairs: &Vec<dyn Pair>) {
-//     let mut pairs:Vec<dyn Pair> = Vec::new();
-//     for typed_pair in typed_pairs {
-//         pairs.push(typed_pair.get_pair());
-//     }
+pub fn write_pair_descriptors(pairs: &Vec<PairTypes>) {
+    let mut pair_descriptors:Vec<Box<dyn Descriptor>> = Vec::new();
+    for pair in pairs {
+        
+        match pair {
+            PairTypes::PancakePair(pancake_pair) => {
+                let descriptor = (*pancake_pair).get_descriptor();
+                pair_descriptors.push(descriptor);
+            }
+        }
+        
+        
+    }
 
-//     let data = json!(pairs);
+    let data = json!(pair_descriptors);
 
-//     let json_str = data.to_string();
+    let json_str = data.to_string();
 
-//     fs::write("descriptors.json", json_str);
+    fs::write("descriptors.json", json_str);
 
-// }
+}
 
 pub fn string_to_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
