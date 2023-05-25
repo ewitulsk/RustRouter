@@ -19,7 +19,9 @@ use crate::registrys::gen_all_pairs;
 use crate::registrys::set_all_metadata;
 use crate::registrys::update_pairs;
 use crate::utils::decimal_to_u64;
+use crate::utils::read_pair_descriptors;
 use crate::utils::u64_to_decimal;
+use crate::utils::write_pair_descriptors;
 // use crate::utils::write_pair_descriptors;
 use crate::{types::Network, pairs::{PairTypes, Pair, pancake_pair::PancakePair}};
 
@@ -78,6 +80,8 @@ fn main() {
     let mut genned_pairs = gen_all_pairs(&network, &mut registry_vec);
 
     // write_pair_descriptors(&genned_pairs);
+
+    read_pair_descriptors();
 
     set_all_metadata(&network, &mut registry_vec, &mut metadata_map);
 

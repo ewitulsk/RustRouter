@@ -6,9 +6,9 @@ use serde::{Serialize, Deserialize, Deserializer};
 use anyhow::{Result, anyhow, Ok};
 use reqwest::blocking::{Client, Response};
 use aptos_sdk::types::network_address;
-use serde_json::json;
+use serde_json::{json, Value};
 
-use crate::pairs::pancake_pair::{PancakePair, PancakeMetadata};
+use crate::pairs::pancake_pair::{PancakePair, PancakeMetadata, pancake_from_value_descriptor};
 use crate::pairs::{PairTypes, Pair, self, Descriptor};
 use crate::types::{Network, NetworkReference};
 
@@ -23,36 +23,32 @@ pub fn u64_to_decimal(val: u64, decimals: i32) -> f64 {
     return (float_val/divisor);
 }
 
-// pub fn read_pair_descriptors() -> Vec<PairTypes> {
-//     let data: String = fs::read_to_string("descriptors.json").expect("Failed to read file");
-//     let pairs: Vec<Pair> = serde_json::from_str(&data).unwrap();
-//     let mut typed_pairs:Vec<PairTypes> = Vec::new();
+pub fn read_pair_descriptors() -> Vec<PairTypes> {
+    let data: String = fs::read_to_string("descriptors.json").expect("Failed to read file");
+    let value_descriptors: Vec<Value> = serde_json::from_str(&data).unwrap();
+    let mut typed_pairs:Vec<PairTypes> = Vec::new();
 
 
-//     for pair in pairs {
-//         match pair.protocol.as_str() {
-//             "pancake" => {
-//                 typed_pairs.push(
-//                     PairTypes::PancakePair(
-//                         PancakePair {
-//                             base: pair,
-//                             metadata: PancakeMetadata {
-//                                 reserves: None,
-//                                 // last_k: None
-//                             }
-//                         }
-//                     )
-//                 )
-//             }
-//             _ => {
-//                 println!("Unknown Pair");
-//             }
-//         }
-//     }
+    for value_descriptor in value_descriptors {
+        let protocol = &*value_descriptor.get("protocol").unwrap().as_str().unwrap();
+        println!("protocol: {}", protocol);
+        match protocol {
+            "pancake" => {
+                typed_pairs.push(
+                    PairTypes::PancakePair(
+                        pancake_from_value_descriptor(value_descriptor)
+                    )
+                )
+            }
+            _ => {
+                println!("Unknown Pair");
+            }
+        }
+    }
 
 
-//     return typed_pairs;
-// }
+    return typed_pairs;
+}
 
 pub fn write_pair_descriptors(pairs: &Vec<PairTypes>) {
     let mut pair_descriptors:Vec<Box<dyn Descriptor>> = Vec::new();

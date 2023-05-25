@@ -6,6 +6,7 @@ use crate::utils::{get_network, query_aptos_resources_raw, string_to_u128, strin
 use super::{Pair, PairMetadata, PairNames, Descriptor};
 
 use serde::{Serialize, Deserialize};
+use serde_json::Value;
 
 
 #[derive(Serialize, Deserialize)]
@@ -13,7 +14,6 @@ pub struct PancakeDescriptor {
     pub network: String,
     pub protocol: String,
     pub pair_name: PairNames,
-    pub pair_key: String,
     pub pool_addr: String,
     pub token_arr: Vec<String>,
     pub router_pair_addr: String,
@@ -64,7 +64,6 @@ impl Pair for PancakePair {
                 network: self.network.clone(),
                 protocol: self.protocol.clone(),
                 pair_name: self.pair_name.clone(),
-                pair_key: self.pair_key.clone(),
                 pool_addr: self.pool_addr.clone(),
                 token_arr: self.token_arr.clone(),
                 router_pair_addr: self.router_pair_addr.clone()
@@ -72,4 +71,31 @@ impl Pair for PancakePair {
             }
         )
     }
+}
+
+pub fn pancake_from_value_descriptor(descriptor: Value) -> PancakePair {
+    let token_val_arr: Vec<Value> = descriptor.get("token_arr").unwrap().as_array().unwrap().clone();
+    let mut token_arr: Vec<String> = Vec::new();
+
+    for val in token_val_arr {
+        let token = val.as_str().unwrap().to_string();
+        token_arr.push(token);
+    }
+
+    let network = descriptor.get("network").unwrap().clone();
+    let protocol = descriptor.get("protocol").unwrap().clone();
+    let pool_addr = descriptor.get("pool_addr").unwrap().clone();
+    let router_addr = descriptor.get("router_pair_addr").unwrap().clone();
+    let pair_key = format!("{}{}{}", pool_addr, token_arr[0], token_arr[1]);
+
+    return PancakePair {
+            network: network.as_str().unwrap().to_string(),
+            protocol: protocol.as_str().unwrap().to_string(),
+            pair_name: PairNames::PancakePair,
+            pair_key: pair_key,
+            pool_addr: pool_addr.as_str().unwrap().to_string(),
+            token_arr: token_arr,
+            router_pair_addr: router_addr.as_str().unwrap().to_string(),
+            metadata: PancakeMetadata { reserves: None }
+        }
 }
