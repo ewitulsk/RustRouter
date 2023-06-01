@@ -71,6 +71,22 @@ impl Pair for PancakePair {
             }
         )
     }
+
+    fn get_protocol(&self) -> &str {
+        return &self.protocol;
+    }
+
+    fn get_token_arr(&self) -> &Vec<String> {
+        return &self.token_arr;
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 pub fn pancake_from_value_descriptor(descriptor: Value) -> PancakePair {

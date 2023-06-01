@@ -1,6 +1,7 @@
 use std::{collections::HashMap, hash::Hash, any::Any};
 
-use crate::{types::{Network}, pairs::{Pair, PairTypes, pancake_pair::{PancakePair, PancakeMetadata}, PairNames, PairMetadata}, utils::{query_aptos_events_raw, string_to_u64, query_aptos_resources_all_raw}};
+use crate::registrys::Rc;
+use crate::{types::{Network}, pairs::{Pair, pancake_pair::{PancakePair, PancakeMetadata}, PairNames, PairMetadata}, utils::{query_aptos_events_raw, string_to_u64, query_aptos_resources_all_raw}};
 use serde::{Serialize, Deserialize};
 
 use super::{Registry};
@@ -47,14 +48,14 @@ pub struct PancakeData {
 
 pub struct PancakeRegistry {}
 impl Registry for PancakeRegistry {
-    fn get_pairs(&self, network: &Network) -> Vec<PairTypes>{
+    fn get_pairs(&self, network: &Network) -> Vec<Box<dyn Pair>>{
         let network_http = &network.http[..];
         let network_name = &network.name[..];
     
         let account = "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa";
         let event = "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa::swap::SwapInfo/pair_created";
         
-        let mut all_pancake_pairs:Vec<PairTypes> = Vec::new();
+        let mut all_pancake_pairs:Vec<Box<dyn Pair>> = Vec::new();
     
         let mut query: bool = true;
         let mut start: u64 = 0;
@@ -84,7 +85,7 @@ impl Registry for PancakeRegistry {
                     }
                 };
     
-                all_pancake_pairs.push(PairTypes::PancakePair(pancake_pair));
+                all_pancake_pairs.push(Box::new(pancake_pair));
             }
     
             start += 100;
