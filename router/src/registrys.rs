@@ -80,25 +80,25 @@ pub fn set_all_metadata(network: &Network, registrys: &mut Vec<Box<dyn Registry>
     }
 }
 
-// pub fn update_pairs(pairs: &mut Vec<Rc<RefCell<Box<dyn Pair>>>>, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >) {
-//     for pair_rc_ref in pairs {
-//         let mut pair = pair_rc_ref.borrow_mut();
-//         let protocol = pair.get_protocol();
-//         match protocol {
-//             "pancake" => {
-//                 let mut pancake_pair = &mut *pair.as_any_mut().downcast_mut::<PancakePair>().unwrap();
-//                 let pancake_metadata_map = &*metadata_map.get(&PairNames::PancakePair).unwrap();
+pub fn update_pairs(pairs: &mut Vec<Rc<RefCell<Box<dyn Pair>>>>, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >) {
+    for pair_rc_ref in pairs {
+        let mut pair = (**pair_rc_ref).borrow_mut();
+        let protocol = pair.get_protocol();
+        match protocol {
+            "pancake" => {
+                let mut pancake_pair = &mut *pair.as_any_mut().downcast_mut::<PancakePair>().unwrap();
+                let pancake_metadata_map = &*metadata_map.get(&PairNames::PancakePair).unwrap();
 
-//                 let identifier = format!("<{}, {}>", pancake_pair.token_arr[0], pancake_pair.token_arr[1]);
-//                 if(pancake_metadata_map.contains_key(&identifier)){
-//                     let pancake_metadata: &PancakeMetadata = &*(*(pancake_metadata_map.get(&identifier).unwrap())).as_any().downcast_ref::<PancakeMetadata>().unwrap();
-//                     pancake_pair.metadata = pancake_metadata.clone();
-//                 }
-//             } 
+                let identifier = format!("<{}, {}>", pancake_pair.token_arr[0], pancake_pair.token_arr[1]);
+                if(pancake_metadata_map.contains_key(&identifier)){
+                    let pancake_metadata: &PancakeMetadata = &*(*(pancake_metadata_map.get(&identifier).unwrap())).as_any().downcast_ref::<PancakeMetadata>().unwrap();
+                    pancake_pair.metadata = pancake_metadata.clone();
+                }
+            } 
 
-//             &_ => {
+            &_ => {
 
-//             }  
-//         }
-//     }
-// }
+            }  
+        }
+    }
+}
