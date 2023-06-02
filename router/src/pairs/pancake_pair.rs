@@ -45,9 +45,9 @@ pub struct PancakePair {
 }
 
 impl Pair for PancakePair {
-    fn output_amount(&self, input_amount: u64, token_in: String, token_out: String) -> u64 {
-        let in_index = self.token_arr.iter().position(|x| x == &token_in).unwrap();
-        let out_index = self.token_arr.iter().position(|x| x == &token_out).unwrap();
+    fn output_amount(&self, input_amount: u64, token_in: &String, token_out: &String) -> u64 {
+        let in_index = self.token_arr.iter().position(|x| x == token_in).unwrap();
+        let out_index = self.token_arr.iter().position(|x| x == token_out).unwrap();
         let reserve_out = self.metadata.reserves.as_ref().unwrap()[out_index];
         let reserve_in = self.metadata.reserves.as_ref().unwrap()[in_index];
         let amount_in_with_fee = (input_amount as u128) * 9975u128;
@@ -78,6 +78,10 @@ impl Pair for PancakePair {
 
     fn get_token_arr(&self) -> &Vec<String> {
         return &self.token_arr;
+    }
+
+    fn get_pair_key(&self) -> &str {
+        return &self.pair_key;
     }
 
     fn as_any(&self) -> &dyn Any {

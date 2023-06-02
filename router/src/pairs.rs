@@ -14,9 +14,10 @@ pub trait PairMetadata {
 }
 
 pub trait Pair {
-    fn output_amount(&self, input_amount: u64, token_in: String, token_out: String) -> u64;
+    fn output_amount(&self, input_amount: u64, token_in: &String, token_out: &String) -> u64;
     fn get_descriptor(&self) -> Box<dyn Descriptor>;
     fn get_protocol(&self) -> &str;
+    fn get_pair_key(&self) -> &str;
     fn get_token_arr(&self) -> &Vec<String>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;

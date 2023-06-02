@@ -18,9 +18,8 @@ use crate::registrys::pancake_registry::PancakeRegistry;
 use crate::registrys::gen_all_pairs;
 use crate::registrys::set_all_metadata;
 use crate::registrys::update_pairs;
-// use crate::registrys::update_pairs;
+use crate::router::find_best_routes_for_fixed_input_amount;
 use crate::utils::decimal_to_u64;
-// use crate::utils::read_pair_descriptors;
 use crate::utils::u64_to_decimal;
 use crate::utils::write_pair_descriptors;
 use crate::{types::Network, pairs::{Pair, pancake_pair::PancakePair}};
@@ -30,6 +29,7 @@ mod manager;
 mod utils;
 mod types;
 mod registrys;
+mod router;
 
 
 fn main() {
@@ -74,49 +74,51 @@ fn main() {
     let input_amount = decimal_to_u64(1.0, in_decimal);
 
 
-    let mut count = 0;
-    for pair_rc_ref in &genned_pairs {
-        let mut pair = (*pair_rc_ref).borrow_mut();
-        let protocol = &*pair.get_protocol();
-        match protocol {
-            "pancake" => {
-                let pancake_pair = pair.as_any().downcast_ref::<PancakePair>().unwrap();
-                if pancake_pair.token_arr.contains(&token_in) && pancake_pair.token_arr.contains(&token_out) {
-                    println!("ResX: {}, ResY: {}", (&pancake_pair.metadata.reserves.as_ref()).unwrap()[0], (&pancake_pair.metadata.reserves.as_ref()).unwrap()[1]);
+    find_best_routes_for_fixed_input_amount(pairs_by_token, &token_in, &token_out, input_amount, 10);
+
+    // let mut count = 0;
+    // for pair_rc_ref in &genned_pairs {
+    //     let mut pair = (*pair_rc_ref).borrow_mut();
+    //     let protocol = &*pair.get_protocol();
+    //     match protocol {
+    //         "pancake" => {
+    //             let pancake_pair = pair.as_any().downcast_ref::<PancakePair>().unwrap();
+    //             if pancake_pair.token_arr.contains(&token_in) && pancake_pair.token_arr.contains(&token_out) {
+    //                 println!("ResX: {}, ResY: {}", (&pancake_pair.metadata.reserves.as_ref()).unwrap()[0], (&pancake_pair.metadata.reserves.as_ref()).unwrap()[1]);
         
-                    break;
-                }
-                count += 1;
-            }
+    //                 break;
+    //             }
+    //             count += 1;
+    //         }
 
-            &_ => {
+    //         &_ => {
 
-            }
-        }
+    //         }
+    //     }
         
         
-    }   
+    // }   
 
-    let mut selected_pair_rc_ref = genned_pairs.get(count).unwrap();
-    let mut selected_pair = (**selected_pair_rc_ref).borrow_mut();
-    let protocol = selected_pair.get_protocol();
-    match protocol {
-        "pancake" => {
-            let mut pancake_pair = &mut *selected_pair.as_any_mut().downcast_mut::<PancakePair>().unwrap();
-            let token_x = &pancake_pair.token_arr[0];
-            let token_y = &pancake_pair.token_arr[1];
-            println!("ResX: {}, ResY: {}", (&pancake_pair.metadata.reserves.as_ref()).unwrap()[0], (&pancake_pair.metadata.reserves.as_ref()).unwrap()[1]);
+    // let mut selected_pair_rc_ref = genned_pairs.get(count).unwrap();
+    // let mut selected_pair = (**selected_pair_rc_ref).borrow_mut();
+    // let protocol = selected_pair.get_protocol();
+    // match protocol {
+    //     "pancake" => {
+    //         let mut pancake_pair = &mut *selected_pair.as_any_mut().downcast_mut::<PancakePair>().unwrap();
+    //         let token_x = &pancake_pair.token_arr[0];
+    //         let token_y = &pancake_pair.token_arr[1];
+    //         println!("ResX: {}, ResY: {}", (&pancake_pair.metadata.reserves.as_ref()).unwrap()[0], (&pancake_pair.metadata.reserves.as_ref()).unwrap()[1]);
 
 
-            let amount_out = pancake_pair.output_amount(input_amount, token_in.to_string(), token_out.to_string());
+    //         let amount_out = pancake_pair.output_amount(input_amount, token_in.to_string(), token_out.to_string());
 
-            println!("In: {}, Out: {}", u64_to_decimal(input_amount, in_decimal), u64_to_decimal(amount_out, out_decimal));
-        }
+    //         println!("In: {}, Out: {}", u64_to_decimal(input_amount, in_decimal), u64_to_decimal(amount_out, out_decimal));
+    //     }
 
-        &_ => {
+    //     &_ => {
 
-        }
-    }
+    //     }
+    // }
     
    
 
