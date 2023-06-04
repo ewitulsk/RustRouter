@@ -1,14 +1,6 @@
 module aptos_router::pancakepair {
-    use std::signer;
-
-    use aptos_std::math64::pow;
-
-    use aptos_framework::account;
     use aptos_framework::coin;
-    use aptos_framework::resource_account;
-    use aptos_framework::genesis;
 
-    use pancake::math;
     use pancake::router;
     use pancake::swap_utils;
     use pancake::swap;   
