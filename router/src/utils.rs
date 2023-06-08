@@ -1,15 +1,10 @@
-use std::io::BufWriter;
-use std::{fs, hash::Hash};
+use std::{fs};
 use std::collections::HashMap;
 
-use serde::{Serialize, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
 use anyhow::{Result, anyhow, Ok};
 use reqwest::blocking::{Client, Response};
-use aptos_sdk::types::network_address;
-use serde_json::{json, Value};
 
-use crate::pairs::pancake_pair::{PancakePair, PancakeMetadata, pancake_from_value_descriptor, self};
-use crate::pairs::{Pair, self, Descriptor};
 use crate::types::{Network, NetworkReference};
 
 pub fn decimal_to_u64(float_val: f64, decimals: i32) -> u64 {
@@ -20,9 +15,10 @@ pub fn decimal_to_u64(float_val: f64, decimals: i32) -> u64 {
 pub fn u64_to_decimal(val: u64, decimals: i32) -> f64 {
     let float_val = val as f64;
     let divisor = 10f64.powi(decimals);
-    return (float_val/divisor);
+    return float_val/divisor;
 }
 
+//Todo: Implement RefCell pairs
 // pub fn read_pair_descriptors() -> Vec<PairTypes> {
 //     let data: String = fs::read_to_string("descriptors.json").expect("Failed to read file");
 //     let value_descriptors: Vec<Value> = serde_json::from_str(&data).unwrap();
@@ -47,32 +43,34 @@ pub fn u64_to_decimal(val: u64, decimals: i32) -> f64 {
 //     return typed_pairs;
 // }
 
-pub fn write_pair_descriptors(pairs: &Vec<Box<dyn Pair>>) {
-    let mut pair_descriptors:Vec<Box<dyn Descriptor>> = Vec::new();
-    for pair in pairs {
-        let protocol: &str = &*pair.get_protocol();
-        match protocol {
-            "pancake" => {
-                let pancake_pair = pair.as_any().downcast_ref::<PancakePair>().unwrap();
-                let descriptor = (*pancake_pair).get_descriptor();
-                pair_descriptors.push(descriptor);
-            }
 
-            &_ => {
+//Todo: Implement RefCell pairs
+// pub fn write_pair_descriptors(pairs: &Vec<Box<dyn Pair>>) {
+//     let mut pair_descriptors:Vec<Box<dyn Descriptor>> = Vec::new();
+//     for pair in pairs {
+//         let protocol: &str = &*pair.get_protocol();
+//         match protocol {
+//             "pancake" => {
+//                 let pancake_pair = pair.as_any().downcast_ref::<PancakePair>().unwrap();
+//                 let descriptor = (*pancake_pair).get_descriptor();
+//                 pair_descriptors.push(descriptor);
+//             }
+
+//             &_ => {
                 
-            }
-        }
+//             }
+//         }
         
         
-    }
+//     }
 
-    let data = json!(pair_descriptors);
+//     let data = json!(pair_descriptors);
 
-    let json_str = data.to_string();
+//     let json_str = data.to_string();
 
-    fs::write("descriptors.json", json_str);
+//     fs::write("descriptors.json", json_str);
 
-}
+// }
 
 pub fn string_to_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
 where
@@ -114,34 +112,6 @@ pub fn query_aptos_events_raw(
     query.push_str(start.to_string().as_str());
     query.push_str("&limit=");
     query.push_str(limit.to_string().as_str());
-
-    let client = Client::new();
-
-    let resp: Response = client.get(query).send().unwrap();
-    let mut body: String = String::new();
-    if resp.status().is_success() {
-        body = resp.text().unwrap();
-        // println!("{}", body);
-    }
-    else {
-        println!("Faild with status code: {}", resp.status());
-    }
-    return body;
-   
-}
-
-pub fn query_aptos_resources_raw(
-    network_address: &str,
-    account: &str,
-    resource: &str
-) -> String {
-
-    let mut query = String::new();
-    query.push_str(network_address);
-    query.push_str("/accounts/");
-    query.push_str(account);
-    query.push_str("/resource/");
-    query.push_str(resource);
 
     let client = Client::new();
 

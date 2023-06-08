@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, cell::RefCell, borrow::{Borrow, BorrowMut}};
+use std::{collections::HashMap, rc::Rc, cell::RefCell};
 
 use crate::pairs::Pair;
 
@@ -48,11 +48,11 @@ pub fn find_best_routes_for_fixed_input_amount(
 
                 for pair_output_token in token_arr {
 
-                    if(pair_output_token == route_output_token){
+                    if pair_output_token == route_output_token {
                         continue;
                     }
 
-                    if(!token_arr.contains(&route_output_token)){
+                    if !token_arr.contains(&route_output_token) {
                         panic!("route output token not contained in token_arr");
                     }
 
@@ -60,11 +60,11 @@ pub fn find_best_routes_for_fixed_input_amount(
                     let mut pair_key_already_exists = false;
                     for p_ref in &route.pairs {
                         let p = (**p_ref).borrow();
-                        if(p.get_pair_key() == pair.get_pair_key()){
+                        if p.get_pair_key() == pair.get_pair_key() {
                             pair_key_already_exists = true;
                         }
                     }
-                    if(pair.get_pair_key() != String::new() && pair_key_already_exists){
+                    if pair.get_pair_key() != String::new() && pair_key_already_exists {
                         continue;
                     }
                     
@@ -72,7 +72,7 @@ pub fn find_best_routes_for_fixed_input_amount(
                     let cur_max_ouput = max_output_amounts.get(pair_output_token).unwrap_or(&0);
 
                     //check to see if we have a better route
-                    if(cur_max_ouput >= &pair_output_amount) {
+                    if cur_max_ouput >= &pair_output_amount {
                         continue;
                     }
 
@@ -99,7 +99,7 @@ pub fn find_best_routes_for_fixed_input_amount(
                     let pair_route_ref = Rc::new(pair_route);
 
                     next_routes.insert(pair_output_token.to_string(), pair_route_ref.clone());
-                    if(pair_output_token == output_token) {
+                    if pair_output_token == output_token {
                         completed_routes.push(pair_route_ref);
                     }
                 }

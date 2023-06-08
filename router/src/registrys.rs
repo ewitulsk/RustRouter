@@ -1,6 +1,6 @@
-use std::{collections::HashMap, hash::Hash, vec, any::Any, rc::Rc, cell::RefCell, borrow::{Borrow, BorrowMut}};
+use std::{collections::HashMap, rc::Rc, cell::RefCell};
 
-use crate::{types::{Network}, pairs::{Pair, PairNames, pancake_pair::{PancakeMetadata, PancakePair}, PairMetadata}, registrys::pancake_registry::{PancakeRegistry}};
+use crate::{types::{Network}, pairs::{Pair, PairNames, pancake_pair::{PancakeMetadata, PancakePair}, PairMetadata}};
 
 pub mod pancake_registry;
 
@@ -60,7 +60,7 @@ pub fn gen_all_pairs(network: &Network, registrys: &mut Vec<Box<dyn Registry>>) 
             let pair_rc_refcel: Rc<RefCell<Box<dyn Pair>>> = Rc::new(RefCell::new(pair));
 
             for token in token_arr {
-                if(!pairs_by_token.contains_key(&token)){
+                if !pairs_by_token.contains_key(&token) {
                     pairs_by_token.insert(token.clone(), Vec::new());
                 }
                 let pair_vec = pairs_by_token.get_mut(&token).unwrap();
@@ -90,7 +90,7 @@ pub fn update_pairs(pairs: &mut Vec<Rc<RefCell<Box<dyn Pair>>>>, metadata_map: &
                 let pancake_metadata_map = &*metadata_map.get(&PairNames::PancakePair).unwrap();
 
                 let identifier = format!("<{}, {}>", pancake_pair.token_arr[0], pancake_pair.token_arr[1]);
-                if(pancake_metadata_map.contains_key(&identifier)){
+                if pancake_metadata_map.contains_key(&identifier) {
                     let pancake_metadata: &PancakeMetadata = &*(*(pancake_metadata_map.get(&identifier).unwrap())).as_any().downcast_ref::<PancakeMetadata>().unwrap();
                     pancake_pair.metadata = pancake_metadata.clone();
                 }

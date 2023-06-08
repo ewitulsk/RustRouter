@@ -1,6 +1,5 @@
-use std::{collections::HashMap, hash::Hash, any::Any};
+use std::{collections::HashMap};
 
-use crate::registrys::Rc;
 use crate::{types::{Network}, pairs::{Pair, pancake_pair::{PancakePair, PancakeMetadata}, PairNames, PairMetadata}, utils::{query_aptos_events_raw, string_to_u64, query_aptos_resources_all_raw}};
 use serde::{Serialize, Deserialize};
 
@@ -96,7 +95,6 @@ impl Registry for PancakeRegistry {
 
     fn get_metadata(&self, network: &Network, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >){
         let network_http = &network.http[..];
-        let network_name = &network.name[..];
     
         let account = "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa";
     
