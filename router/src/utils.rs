@@ -88,7 +88,7 @@ where
     s.parse::<u128>().map_err(serde::de::Error::custom)
 }
 
-pub fn query_aptos_events_raw(
+pub async fn query_aptos_events_raw(
     network_address: &str,
     account: &str,
     event: &str,
@@ -113,22 +113,13 @@ pub fn query_aptos_events_raw(
     query.push_str("&limit=");
     query.push_str(limit.to_string().as_str());
 
-    let client = Client::new();
+    let body = reqwest::get(query).await.unwrap().text().await.unwrap();
 
-    let resp: Response = client.get(query).send().unwrap();
-    let mut body: String = String::new();
-    if resp.status().is_success() {
-        body = resp.text().unwrap();
-        // println!("{}", body);
-    }
-    else {
-        println!("Faild with status code: {}", resp.status());
-    }
     return body;
    
 }
 
-pub fn query_aptos_resources_all_raw(
+pub async fn query_aptos_resources_all_raw(
     network_address: &str,
     account: &str,
 ) -> String {
@@ -139,19 +130,9 @@ pub fn query_aptos_resources_all_raw(
     query.push_str(account);
     query.push_str("/resources");
 
-    let client = Client::new();
-
-    let resp: Response = client.get(query).send().unwrap();
-    let mut body: String = String::new();
-    if resp.status().is_success() {
-        body = resp.text().unwrap();
-        // println!("{}", body);
-    }
-    else {
-        println!("Faild with status code: {}", resp.status());
-    }
-    return body;
+    let body = reqwest::get(query).await.unwrap().text().await.unwrap();
    
+    return body;
 }
 
 pub fn get_network(name: String) -> Result<Network> {
