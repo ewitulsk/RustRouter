@@ -47,6 +47,7 @@ pub struct PancakeData {
     data: Data
 }
 
+#[derive(Clone)]
 pub struct PancakeRegistry {}
 #[async_trait]
 impl Registry for PancakeRegistry {

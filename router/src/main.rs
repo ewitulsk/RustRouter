@@ -89,6 +89,10 @@ async fn initalize_router() {
 }
 
 
+//The route forwared is to create a thread whos purpose is to maintain the state of 
+//the pairs_by_token mapping and to fufill token routing requests. 
+//Also split state management and async blockchain indexing into two different threads.
+//One thread from the server, one thread that maintains the pairs_by_token mapping, and one thread that indexes the blockchain.
 
 // basic handler that responds with a static string
 async fn root() -> &'static str {
@@ -100,7 +104,6 @@ async fn token_route_handler(
     Path(in_decimal): Path<u64>,
     Path(token_out): Path<String>,
     Path(out_decimal): Path<u64>,
-    State(state): State<ServerState>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)>{
     Ok(StatusCode::OK)
 }
@@ -110,13 +113,11 @@ async fn main() {
     // initialize tracing
     tracing_subscriber::fmt::init();
 
-    state = ServerState{}
-
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
-        .route("/", get(root));
-        // .route("/find_best_routes_for_fixed_input_amount/:token_in/:in_decimal/:token_out/:out_decimal", get(token_route_handler)).with_state(state);
+        .route("/", get(root))
+        .route("/find_best_routes_for_fixed_input_amount/:token_in/:in_decimal/:token_out/:out_decimal", get(token_route_handler));
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
