@@ -1,5 +1,16 @@
 #![allow(dead_code)]
 
+use axum::{
+    extract::{Path, State},
+    response::IntoResponse,
+    routing::{get, post},
+    http::StatusCode,
+    Json, Router,
+};
+
+use tracing_subscriber;
+use tokio;
+
 use std::collections::HashMap;
 
 use crate::pairs::PairMetadata;
@@ -21,7 +32,13 @@ mod registrys;
 mod router;
 
 
-fn main() {
+struct ServerState{
+    network: Network,
+    registry_vec: Vec<Box<dyn Registry>>,
+    metadata_map: HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >,
+}
+
+async fn initalize_router() {
     println!("Hello, world!");
     let network: Network;
     match utils::get_network(String::from("aptos_mainnet")) {
@@ -44,7 +61,7 @@ fn main() {
     let mut metadata_map: HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> > = HashMap::new();
     metadata_map.insert(PairNames::PancakePair, pancake_metadata_map);
 
-    let gen_pairs_result = gen_all_pairs(&network, &mut registry_vec);
+    let gen_pairs_result = gen_all_pairs(&network, &mut registry_vec).await;
     let mut genned_pairs = gen_pairs_result.0;
     let pairs_by_token = gen_pairs_result.1;
 
@@ -52,7 +69,7 @@ fn main() {
     // let mut genned_pairs: Vec<PairTypes> = read_pair_descriptors();
 
 
-    set_all_metadata(&network, &mut registry_vec, &mut metadata_map);
+    set_all_metadata(&network, &mut registry_vec, &mut metadata_map).await;
 
     update_pairs(&mut genned_pairs, &mut metadata_map);
 
@@ -69,4 +86,39 @@ fn main() {
     println!("Path: {:?}", best_route.path);
     println!("Path Amounts: {:?}", best_route.path_amounts);   
 
+}
+
+
+
+// basic handler that responds with a static string
+async fn root() -> &'static str {
+    "Routey Is Live!"
+}
+
+async fn token_route_handler(
+    Path(token_in): Path<String>,
+    Path(in_decimal): Path<u64>,
+    Path(token_out): Path<String>,
+    Path(out_decimal): Path<u64>,
+    State(state): State<ServerState>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)>{
+    Ok(StatusCode::OK)
+}
+
+#[tokio::main]
+async fn main() {
+    // initialize tracing
+    tracing_subscriber::fmt::init();
+
+    state = ServerState{}
+
+    // build our application with a route
+    let app = Router::new()
+        // `GET /` goes to `root`
+        .route("/", get(root));
+        // .route("/find_best_routes_for_fixed_input_amount/:token_in/:in_decimal/:token_out/:out_decimal", get(token_route_handler)).with_state(state);
+
+    // run our app with hyper, listening globally on port 3000
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
 }

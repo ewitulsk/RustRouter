@@ -3,7 +3,9 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Deserializer};
 use anyhow::{Result, anyhow, Ok};
-use reqwest::blocking::{Client, Response};
+// use reqwest::blocking::{Client, Response};
+use reqwest::{Client, Response};
+use reqwest;
 
 use crate::types::{Network, NetworkReference};
 
@@ -88,7 +90,7 @@ where
     s.parse::<u128>().map_err(serde::de::Error::custom)
 }
 
-pub fn query_aptos_events_raw(
+pub async fn query_aptos_events_raw(
     network_address: &str,
     account: &str,
     event: &str,
@@ -115,10 +117,10 @@ pub fn query_aptos_events_raw(
 
     let client = Client::new();
 
-    let resp: Response = client.get(query).send().unwrap();
+    let resp: Response = client.get(query).send().await.unwrap();
     let mut body: String = String::new();
     if resp.status().is_success() {
-        body = resp.text().unwrap();
+        body = resp.text().await.unwrap();
         // println!("{}", body);
     }
     else {
@@ -128,7 +130,7 @@ pub fn query_aptos_events_raw(
    
 }
 
-pub fn query_aptos_resources_all_raw(
+pub async fn query_aptos_resources_all_raw(
     network_address: &str,
     account: &str,
 ) -> String {
@@ -141,10 +143,10 @@ pub fn query_aptos_resources_all_raw(
 
     let client = Client::new();
 
-    let resp: Response = client.get(query).send().unwrap();
+    let resp: Response = client.get(query).send().await.unwrap();
     let mut body: String = String::new();
     if resp.status().is_success() {
-        body = resp.text().unwrap();
+        body = resp.text().await.unwrap();
         // println!("{}", body);
     }
     else {

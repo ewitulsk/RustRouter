@@ -1,0 +1,4 @@
+router/target/
+contracts/aptos/.aptos/
+contracts/aptos/build/
+contracts/aptos/pairs/pancake/build/

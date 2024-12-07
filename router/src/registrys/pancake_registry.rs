@@ -1,9 +1,11 @@
 use std::{collections::HashMap};
+use async_trait::async_trait;
 
 use crate::{types::{Network}, pairs::{Pair, pancake_pair::{PancakePair, PancakeMetadata}, PairNames, PairMetadata}, utils::{query_aptos_events_raw, string_to_u64, query_aptos_resources_all_raw}};
 use serde::{Serialize, Deserialize};
 
 use super::{Registry};
+
 
 //         "version": "126524019",
 //         "guid": {
@@ -46,8 +48,9 @@ pub struct PancakeData {
 }
 
 pub struct PancakeRegistry {}
+#[async_trait]
 impl Registry for PancakeRegistry {
-    fn get_pairs(&self, network: &Network) -> Vec<Box<dyn Pair>>{
+    async fn get_pairs(&self, network: &Network) -> Vec<Box<dyn Pair>>{
         let network_http = &network.http[..];
         let network_name = &network.name[..];
     
@@ -59,7 +62,7 @@ impl Registry for PancakeRegistry {
         let mut query: bool = true;
         let mut start: u64 = 0;
         while query {
-            let raw_data = query_aptos_events_raw(network_http, account, event, start, 100);
+            let raw_data = query_aptos_events_raw(network_http, account, event, start, 100).await;
             let data: Vec<PancakeData> = serde_json::from_str(&raw_data).unwrap();
     
             if data.len() < 100 {
@@ -93,12 +96,12 @@ impl Registry for PancakeRegistry {
         return all_pancake_pairs;
     }
 
-    fn get_metadata(&self, network: &Network, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >){
+    async fn get_metadata(&self, network: &Network, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >){
         let network_http = &network.http[..];
     
         let account = "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa";
     
-        let all_resources_raw = query_aptos_resources_all_raw(network_http, account);
+        let all_resources_raw = query_aptos_resources_all_raw(network_http, account).await;
     
         let all_resources:Vec<serde_json::Value> = serde_json::from_str(&all_resources_raw).unwrap();
 

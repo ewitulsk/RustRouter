@@ -2,12 +2,14 @@ use std::{collections::HashMap, rc::Rc, cell::RefCell};
 
 use crate::{types::{Network}, pairs::{Pair, PairNames, pancake_pair::{PancakeMetadata, PancakePair}, PairMetadata}};
 
+use async_trait::async_trait;
+
 pub mod pancake_registry;
 
-
-pub trait Registry {
-    fn get_pairs(&self, network: &Network) -> Vec<Box<dyn Pair>>;
-    fn get_metadata(&self, network: &Network, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >);
+#[async_trait]
+pub trait Registry: Send + Sync {
+    async fn get_pairs(&self, network: &Network) -> Vec<Box<dyn Pair>>;
+    async fn get_metadata(&self, network: &Network, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >);
 }
 
 // pub fn all_registrys<'a>(network: Network) -> HashMap<PairNames, RegistryTypes> {
@@ -49,11 +51,11 @@ pub trait Registry {
 //     return pairs_by_token_map.clone();
 // }   
 
-pub fn gen_all_pairs(network: &Network, registrys: &mut Vec<Box<dyn Registry>>) -> (Vec<Rc<RefCell<Box<dyn Pair>>>>, HashMap<String, Vec<Rc<RefCell<Box<dyn Pair>>>> >) {
+pub async fn gen_all_pairs(network: &Network, registrys: &mut Vec<Box<dyn Registry>>) -> (Vec<Rc<RefCell<Box<dyn Pair>>>>, HashMap<String, Vec<Rc<RefCell<Box<dyn Pair>>>> >) {
     let mut pairs: Vec<Rc<RefCell<Box<dyn Pair>>>> = Vec::new();
     let mut pairs_by_token: HashMap<String, Vec<Rc<RefCell<Box<dyn Pair>>>> > = HashMap::new();
     for registry in registrys {
-        let reg_pairs = (*registry).get_pairs(network);
+        let reg_pairs = (*registry).get_pairs(network).await;
 
         for pair in reg_pairs {
             let token_arr = pair.get_token_arr().clone();
@@ -74,9 +76,9 @@ pub fn gen_all_pairs(network: &Network, registrys: &mut Vec<Box<dyn Registry>>) 
     return (pairs, pairs_by_token);
 }
 
-pub fn set_all_metadata(network: &Network, registrys: &mut Vec<Box<dyn Registry>>, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >) {
+pub async fn set_all_metadata(network: &Network, registrys: &mut Vec<Box<dyn Registry>>, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >) {
     for registry in registrys {
-       (*registry).get_metadata(network, metadata_map);
+       (*registry).get_metadata(network, metadata_map).await;
     }
 }
 
