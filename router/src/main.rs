@@ -12,9 +12,15 @@ use tracing_subscriber;
 use tokio;
 
 use std::collections::HashMap;
+use std::sync::mpsc::{self, RecvTimeoutError};
+use std::time::Duration;
+use std::thread;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 use crate::pairs::PairMetadata;
 use crate::pairs::PairNames;
+use crate::pairs::Pair;
 use crate::registrys::Registry;
 use crate::registrys::pancake_registry::PancakeRegistry;
 use crate::registrys::gen_all_pairs;
@@ -32,13 +38,13 @@ mod registrys;
 mod router;
 
 
-struct ServerState{
-    network: Network,
-    registry_vec: Vec<Box<dyn Registry>>,
-    metadata_map: HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >,
-}
-
-async fn initalize_router() {
+async fn initalize_router() -> (
+    Network, 
+    Vec<Box<dyn registrys::Registry>>, //registery_vec
+    HashMap<PairNames, HashMap<std::string::String, Box<dyn PairMetadata>>>, //metadata_map
+    Vec<Rc<RefCell<Box<(dyn Pair + 'static)>>>>, //genned_pairs
+    HashMap<String, Vec<Rc<RefCell<Box<(dyn Pair + 'static)>>>>>, //pairs_by_token
+) {
     println!("Hello, world!");
     let network: Network;
     match utils::get_network(String::from("aptos_mainnet")) {
@@ -65,27 +71,7 @@ async fn initalize_router() {
     let mut genned_pairs = gen_pairs_result.0;
     let pairs_by_token = gen_pairs_result.1;
 
-    // write_pair_descriptors(&genned_pairs);
-    // let mut genned_pairs: Vec<PairTypes> = read_pair_descriptors();
-
-
-    set_all_metadata(&network, &mut registry_vec, &mut metadata_map).await;
-
-    update_pairs(&mut genned_pairs, &mut metadata_map);
-
-    let token_in = String::from("0x1::aptos_coin::AptosCoin");
-    let in_decimal = 8;
-    let token_out: String = String::from("0x159df6b7689437016108a019fd5bef736bac692b6d4a1f10c941f6fbb9a74ca6::oft::CakeOFT");
-    let _out_decimal = 6;
-    let input_amount = decimal_to_u64(1.0, in_decimal);
-
-
-    let route_vec = find_best_routes_for_fixed_input_amount(pairs_by_token, &token_in, &token_out, input_amount, 10);
-    let best_route = &route_vec[0];
-
-    println!("Path: {:?}", best_route.path);
-    println!("Path Amounts: {:?}", best_route.path_amounts);   
-
+    return (network, registry_vec, metadata_map, genned_pairs, pairs_by_token);
 }
 
 
@@ -99,13 +85,44 @@ async fn root() -> &'static str {
     "Routey Is Live!"
 }
 
+#[derive(serde::Deserialize)]
+struct RouteRequest {
+    token_in: String,
+    in_decimal: u64,
+    token_out: String,
+    out_decimal: u64,
+    input_amount: u64,
+}
+
+struct ChannelRouteRequest {
+   route_request: RouteRequest,
+   fromthread_tx: mpsc::Sender<RouteResponseBody>,
+}
+
+#[derive(serde::Serialize)]
+struct RouteResponseBody {
+    path: Vec<String>,
+    path_amounts: Vec<u64>,
+}
+
+#[derive(Clone)]
+struct ServerState{
+    tothread_tx: mpsc::Sender<ChannelRouteRequest>,
+}
+
 async fn token_route_handler(
-    Path(token_in): Path<String>,
-    Path(in_decimal): Path<u64>,
-    Path(token_out): Path<String>,
-    Path(out_decimal): Path<u64>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)>{
-    Ok(StatusCode::OK)
+    State(state): State<ServerState>,
+    Json(payload): Json<RouteRequest>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let (fromthread_tx, fromthread_rx) = mpsc::channel::<RouteResponseBody>();
+
+    state.tothread_tx.send(
+        ChannelRouteRequest{route_request: payload, fromthread_tx: fromthread_tx}
+    ).unwrap();
+
+    let response_body = fromthread_rx.recv().unwrap();
+
+    return Ok(Json(response_body));
 }
 
 #[tokio::main]
@@ -113,13 +130,66 @@ async fn main() {
     // initialize tracing
     tracing_subscriber::fmt::init();
 
+    let (tothread_tx, tothread_rx) = mpsc::channel::<ChannelRouteRequest>();
+
+    // Create a new tokio runtime for the thread
+    thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async move {
+            let (network, mut registry_vec, mut metadata_map, mut genned_pairs, pairs_by_token) = initalize_router().await;
+            
+            //We should be running this in the loop, BUT, it is inefficiently querying data for each pair.
+            //So we're hitting a node rate limit.
+            set_all_metadata(&network, &mut registry_vec, &mut metadata_map).await;
+            update_pairs(&mut genned_pairs, &mut metadata_map);
+            loop {
+                match tothread_rx.recv_timeout(Duration::from_millis(500)) {
+                    Ok(message) => {
+                        let payload = message.route_request;
+                        let token_in = payload.token_in;
+                        let token_out = payload.token_out;
+                        let input_amount = payload.input_amount;
+                        let route_vec = find_best_routes_for_fixed_input_amount(&pairs_by_token, &token_in, &token_out, input_amount, 10);
+                        let best_route = &route_vec[0];
+
+                        let response_body = RouteResponseBody {
+                            path: best_route.path.clone(),
+                            path_amounts: best_route.path_amounts.clone(),
+                        };
+
+                        message.fromthread_tx.send(response_body).unwrap();
+                        
+                        println!("Path: {:?}", best_route.path);
+                        println!("Path Amounts: {:?}", best_route.path_amounts);   
+                        // println!("Received message: {}", message);
+                    },
+                    Err(RecvTimeoutError::Timeout) => {
+                        println!("Timeout");
+                    }
+                    Err(RecvTimeoutError::Disconnected) => {
+                        println!("Disconnected");
+                    }
+                }
+            }
+        });
+    });
+
+    let state = ServerState{
+        tothread_tx: tothread_tx,
+    };
+
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
         .route("/", get(root))
-        .route("/find_best_routes_for_fixed_input_amount/:token_in/:in_decimal/:token_out/:out_decimal", get(token_route_handler));
+        .route(
+            "/find_best_routes_for_fixed_input_amount",
+            post(token_route_handler)
+        )
+        .with_state(state);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    println!("Listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }

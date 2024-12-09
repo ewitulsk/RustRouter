@@ -9,7 +9,7 @@ pub struct Route {
 }
 
 pub fn find_best_routes_for_fixed_input_amount(
-    pairs_by_token: HashMap<String, Vec<Rc<RefCell<Box<dyn Pair>>>>>,
+    pairs_by_token: &HashMap<String, Vec<Rc<RefCell<Box<dyn Pair>>>>>,
     input_token: &String,
     output_token: &String,
     input_amount: u64,
