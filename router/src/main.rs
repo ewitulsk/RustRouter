@@ -29,6 +29,7 @@ use crate::registrys::update_pairs;
 use crate::router::find_best_routes_for_fixed_input_amount;
 use crate::utils::decimal_to_u64;
 use crate::{types::Network};
+use crate::aptos_transaction_watcher::aptos_watch_transactions;
 
 mod pairs;
 mod manager;
@@ -36,28 +37,15 @@ mod utils;
 mod types;
 mod registrys;
 mod router;
+mod aptos_transaction_watcher;
 
 
-async fn initalize_router() -> (
-    Network, 
+async fn initalize_router(network: &Network) -> (
     Vec<Box<dyn registrys::Registry>>, //registery_vec
     HashMap<PairNames, HashMap<std::string::String, Box<dyn PairMetadata>>>, //metadata_map
     Vec<Rc<RefCell<Box<(dyn Pair + 'static)>>>>, //genned_pairs
     HashMap<String, Vec<Rc<RefCell<Box<(dyn Pair + 'static)>>>>>, //pairs_by_token
 ) {
-    println!("Hello, world!");
-    let network: Network;
-    match utils::get_network(String::from("aptos_mainnet")) {
-        Ok(result) => {
-            network = result;
-            println!("Name: {}, ChainID: {}, HTTP: {}", network.name, network.chain_id, network.http);
-        },
-        Err(error) => {
-            eprintln!("Error: {}", error);
-            std::process::exit(1);
-        }
-    }
-
     let pancake_registry = Box::new(PancakeRegistry {});
     let pancake_metadata_map: HashMap<String, Box<dyn PairMetadata>> = HashMap::new();
 
@@ -67,11 +55,11 @@ async fn initalize_router() -> (
     let mut metadata_map: HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> > = HashMap::new();
     metadata_map.insert(PairNames::PancakePair, pancake_metadata_map);
 
-    let gen_pairs_result = gen_all_pairs(&network, &mut registry_vec).await;
+    let gen_pairs_result = gen_all_pairs(network, &mut registry_vec).await;
     let mut genned_pairs = gen_pairs_result.0;
     let pairs_by_token = gen_pairs_result.1;
 
-    return (network, registry_vec, metadata_map, genned_pairs, pairs_by_token);
+    return (registry_vec, metadata_map, genned_pairs, pairs_by_token);
 }
 
 
@@ -132,11 +120,34 @@ async fn main() {
 
     let (tothread_tx, tothread_rx) = mpsc::channel::<ChannelRouteRequest>();
 
-    // Create a new tokio runtime for the thread
+
+    println!("Hello, world!");
+    let network: Network;
+    match utils::get_network(String::from("aptos_mainnet")) {
+        Ok(result) => {
+            network = result;
+            println!("Name: {}, ChainID: {}, HTTP: {}", network.name, network.chain_id, network.http);
+        },
+        Err(error) => {
+            eprintln!("Error: {}", error);
+            std::process::exit(1);
+        }
+    }
+
+    let tx_watcher_network = network.clone();
     thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {
-            let (network, mut registry_vec, mut metadata_map, mut genned_pairs, pairs_by_token) = initalize_router().await;
+            aptos_watch_transactions(&tx_watcher_network).await;
+        });
+    });
+
+    // Create a new tokio runtime for the thread
+    let router_network = network.clone();
+    thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async move {
+            let (mut registry_vec, mut metadata_map, mut genned_pairs, pairs_by_token) = initalize_router(&router_network).await;
             
             //We should be running this in the loop, BUT, it is inefficiently querying data for each pair.
             //So we're hitting a node rate limit.
