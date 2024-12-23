@@ -18,8 +18,8 @@ pub async fn aptos_watch_transactions(network: &Network, starting_version: u64, 
     let registrys_to_watch = fromthread_rx.recv().unwrap().registrys_to_watch;
     println!("Registrys to watch: {:?}", registrys_to_watch);
     let mut last_version = 0;
-    // let mut cur_version = starting_version;
-    let mut cur_version = 2085727565;
+    let mut cur_version = starting_version;
+    // let mut cur_version = 2085727565; <--- Test Start. Has pancake swap in next version.
     while(true){
         let mut changes_map = HashMap::<String, Vec<Value>>::new();
         let transactions = query_aptos_transactions_by_version(&network.http, cur_version, 10000).await;
