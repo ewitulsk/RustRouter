@@ -1,6 +1,13 @@
 use std::{collections::HashMap, rc::Rc, cell::RefCell};
 
-use crate::{types::{Network}, pairs::{Pair, PairNames, pancake_pair::{PancakeMetadata, PancakePair}, PairMetadata}};
+use serde_json::{self, Value};
+
+use crate::{
+    types::{Network},
+    pairs::{Pair, PairNames, 
+        pancake_pair::{PancakeMetadata, PancakePair}, PairMetadata},
+    registrys::pancake_registry::PancakeRegistry
+};
 
 use async_trait::async_trait;
 
@@ -8,8 +15,20 @@ pub mod pancake_registry;
 
 #[async_trait]
 pub trait Registry: Send + Sync {
+    fn module_address(&self) -> &str;
+    fn protocol(&self) -> &str;
     async fn get_pairs(&self, network: &Network) -> Vec<Box<dyn Pair>>;
     async fn get_metadata(&self, network: &Network, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >);
+}
+
+pub fn get_all_registerys_from_json(network: &Network) -> Vec<Box<dyn Registry>> {
+    let json = serde_json::from_str::<Vec<Value>>(include_str!("../../registerys.json")).unwrap();
+    
+    let pancake_registry_val = json.iter().find(|x| x["protocol"] == "pancake" && x["network"] == network.name).unwrap().clone();
+    let pancake_registry = Box::new(serde_json::from_value::<PancakeRegistry>(pancake_registry_val).unwrap()) as Box<dyn Registry>;
+
+    let registrys = vec![pancake_registry];
+    return registrys;
 }
 
 // pub fn all_registrys<'a>(network: Network) -> HashMap<PairNames, RegistryTypes> {

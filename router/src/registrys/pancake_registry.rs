@@ -3,7 +3,7 @@ use async_trait::async_trait;
 
 use crate::{types::{Network}, pairs::{Pair, pancake_pair::{PancakePair, PancakeMetadata}, PairNames, PairMetadata}, utils::{query_aptos_events_raw, string_to_u64, query_aptos_resources_all_raw}};
 use serde::{Serialize, Deserialize};
-
+use serde_json::Value;
 use super::{Registry};
 
 
@@ -47,10 +47,22 @@ pub struct PancakeData {
     data: Data
 }
 
-#[derive(Clone)]
-pub struct PancakeRegistry {}
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PancakeRegistry {
+    module_address: String,
+    protocol: String
+}
+
 #[async_trait]
 impl Registry for PancakeRegistry {
+    fn module_address(&self) -> &str {
+        return &self.module_address;
+    }
+
+    fn protocol(&self) -> &str {
+        return &self.protocol;
+    }
+
     async fn get_pairs(&self, network: &Network) -> Vec<Box<dyn Pair>>{
         let network_http = &network.http[..];
         let network_name = &network.name[..];
@@ -131,8 +143,6 @@ impl Registry for PancakeRegistry {
 
         metadata_map.insert(PairNames::PancakePair, pancake_map);
     }
-
-    
 }
 
 

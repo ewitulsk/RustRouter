@@ -10,9 +10,8 @@ use axum::{
 
 use tracing_subscriber;
 use tokio;
-
 use std::collections::HashMap;
-use std::sync::mpsc::{self, RecvTimeoutError};
+use std::sync::mpsc::{self, RecvTimeoutError, RecvError};
 use std::time::Duration;
 use std::thread;
 use std::rc::Rc;
@@ -23,12 +22,16 @@ use crate::pairs::PairNames;
 use crate::pairs::Pair;
 use crate::registrys::Registry;
 use crate::registrys::pancake_registry::PancakeRegistry;
-use crate::registrys::gen_all_pairs;
-use crate::registrys::set_all_metadata;
-use crate::registrys::update_pairs;
+use crate::registrys::{
+    gen_all_pairs, 
+    get_all_registerys_from_json, 
+    set_all_metadata, update_pairs
+};
 use crate::router::find_best_routes_for_fixed_input_amount;
-use crate::utils::decimal_to_u64;
-use crate::{types::Network};
+use crate::utils::{decimal_to_u64, get_aptos_version};
+use crate::{
+    types::{Network, ChannelUpdateMetadata, ChannelRegistrysToWatch}
+};
 use crate::aptos_transaction_watcher::aptos_watch_transactions;
 
 mod pairs;
@@ -39,18 +42,14 @@ mod registrys;
 mod router;
 mod aptos_transaction_watcher;
 
-
 async fn initalize_router(network: &Network) -> (
     Vec<Box<dyn registrys::Registry>>, //registery_vec
     HashMap<PairNames, HashMap<std::string::String, Box<dyn PairMetadata>>>, //metadata_map
     Vec<Rc<RefCell<Box<(dyn Pair + 'static)>>>>, //genned_pairs
     HashMap<String, Vec<Rc<RefCell<Box<(dyn Pair + 'static)>>>>>, //pairs_by_token
 ) {
-    let pancake_registry = Box::new(PancakeRegistry {});
+    let mut registry_vec = get_all_registerys_from_json(network);
     let pancake_metadata_map: HashMap<String, Box<dyn PairMetadata>> = HashMap::new();
-
-    let mut registry_vec: Vec<Box<dyn Registry>> = Vec::new();
-    registry_vec.push(pancake_registry);
 
     let mut metadata_map: HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> > = HashMap::new();
     metadata_map.insert(PairNames::PancakePair, pancake_metadata_map);
@@ -119,7 +118,7 @@ async fn main() {
     tracing_subscriber::fmt::init();
 
     let (tothread_tx, tothread_rx) = mpsc::channel::<ChannelRouteRequest>();
-
+    let (tothread_updater_tx, tothread_updater_rx) = mpsc::channel::<ChannelUpdateMetadata>();
 
     println!("Hello, world!");
     let network: Network;
@@ -134,26 +133,53 @@ async fn main() {
         }
     }
 
-    let tx_watcher_network = network.clone();
-    thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async move {
-            aptos_watch_transactions(&tx_watcher_network).await;
-        });
-    });
+    
 
-    // Create a new tokio runtime for the thread
     let router_network = network.clone();
     thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async move {
             let (mut registry_vec, mut metadata_map, mut genned_pairs, pairs_by_token) = initalize_router(&router_network).await;
-            
+            let registrys_to_watch = registry_vec.iter().map(|x| x.module_address().to_string()).collect::<Vec<String>>();
+
+            let starting_version = get_aptos_version(&router_network.http).await.unwrap();
             //We should be running this in the loop, BUT, it is inefficiently querying data for each pair.
             //So we're hitting a node rate limit.
-            set_all_metadata(&network, &mut registry_vec, &mut metadata_map).await;
-            update_pairs(&mut genned_pairs, &mut metadata_map);
+            
+            // set_all_metadata(&network, &mut registry_vec, &mut metadata_map).await;
+            // update_pairs(&mut genned_pairs, &mut metadata_map);
+
+            thread::spawn(move || {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async move {
+                    aptos_watch_transactions(&router_network, starting_version, &tothread_updater_tx, &registry_vec).await;
+                });
+            });
+
             loop {
+                match tothread_updater_rx.recv() {
+                    Ok(message) => {
+                        match message.channel_tx {
+                            Some(channel_tx) => {
+                                channel_tx.send(ChannelRegistrysToWatch{
+                                    registrys_to_watch: registrys_to_watch.clone()
+                                }).unwrap();
+                            }
+                            None => {}
+                        }
+                        match message.new_metadata {
+                            Some(new_metadata) => {
+                                println!("New metadata: {:?}", new_metadata);
+                                // update_metadata(&mut metadata_map, &new_metadata);
+                            }
+                            None => {}
+                        }
+                    }
+                    Err(RecvError) => {
+                        println!("Disconnected");
+                    }
+                }
+                
                 match tothread_rx.recv_timeout(Duration::from_millis(500)) {
                     Ok(message) => {
                         let payload = message.route_request;
