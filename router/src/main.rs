@@ -25,7 +25,9 @@ use crate::registrys::pancake_registry::PancakeRegistry;
 use crate::registrys::{
     gen_all_pairs, 
     get_all_registerys_from_json, 
-    set_all_metadata, update_pairs
+    build_metadata_map_from_changes,
+    set_all_metadata, 
+    update_pairs
 };
 use crate::router::find_best_routes_for_fixed_input_amount;
 use crate::utils::{decimal_to_u64, get_aptos_version};
@@ -145,14 +147,14 @@ async fn main() {
             let starting_version = get_aptos_version(&router_network.http).await.unwrap();
             //We should be running this in the loop, BUT, it is inefficiently querying data for each pair.
             //So we're hitting a node rate limit.
-            
-            // set_all_metadata(&network, &mut registry_vec, &mut metadata_map).await;
-            // update_pairs(&mut genned_pairs, &mut metadata_map);
+
+            set_all_metadata(&network, &mut registry_vec, &mut metadata_map).await;
+            update_pairs(&mut genned_pairs, &mut metadata_map);
 
             thread::spawn(move || {
                 let rt = tokio::runtime::Runtime::new().unwrap();
                 rt.block_on(async move {
-                    aptos_watch_transactions(&router_network, starting_version, &tothread_updater_tx, &registry_vec).await;
+                    aptos_watch_transactions(&router_network, starting_version, &tothread_updater_tx).await;
                 });
             });
 
@@ -169,8 +171,8 @@ async fn main() {
                         }
                         match message.new_metadata {
                             Some(new_metadata) => {
-                                println!("New metadata: {:?}", new_metadata);
-                                // update_metadata(&mut metadata_map, &new_metadata);
+                                let mut metadata_map = build_metadata_map_from_changes(&registry_vec, new_metadata);
+                                update_pairs(&mut genned_pairs, &mut metadata_map);
                             }
                             None => {}
                         }
@@ -198,7 +200,6 @@ async fn main() {
                         
                         println!("Path: {:?}", best_route.path);
                         println!("Path Amounts: {:?}", best_route.path_amounts);   
-                        // println!("Received message: {}", message);
                     },
                     Err(RecvTimeoutError::Timeout) => {
                         println!("Timeout");

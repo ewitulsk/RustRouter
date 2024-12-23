@@ -8,7 +8,7 @@ use crate::types::{Network, ChannelUpdateMetadata};
 use crate::registrys::Registry;
 use crate::types::ChannelRegistrysToWatch;
 
-pub async fn aptos_watch_transactions(network: &Network, starting_version: u64, tothread_updater_tx: &Sender<ChannelUpdateMetadata>, registry_vec: &Vec<Box<dyn Registry>>) {
+pub async fn aptos_watch_transactions(network: &Network, starting_version: u64, tothread_updater_tx: &Sender<ChannelUpdateMetadata>) {
     let (fromthread_tx, fromthread_rx) = mpsc::channel::<ChannelRegistrysToWatch>();
 
     tothread_updater_tx.send(

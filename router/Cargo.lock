@@ -6342,6 +6342,7 @@ dependencies = [
  "axum 0.7.9",
  "erased-serde",
  "http 0.2.12",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

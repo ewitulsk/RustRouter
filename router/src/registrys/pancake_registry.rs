@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use crate::{types::{Network}, pairs::{Pair, pancake_pair::{PancakePair, PancakeMetadata}, PairNames, PairMetadata}, utils::{query_aptos_events_raw, string_to_u64, query_aptos_resources_all_raw}};
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
+use regex::Regex;
 use super::{Registry};
 
 
@@ -59,8 +60,8 @@ impl Registry for PancakeRegistry {
         return &self.module_address;
     }
 
-    fn protocol(&self) -> &str {
-        return &self.protocol;
+    fn protocol(&self) -> PairNames {
+        return PairNames::PancakePair;
     }
 
     async fn get_pairs(&self, network: &Network) -> Vec<Box<dyn Pair>>{
@@ -142,6 +143,41 @@ impl Registry for PancakeRegistry {
         println!("Total: {}", count);
 
         metadata_map.insert(PairNames::PancakePair, pancake_map);
+    }
+
+    fn build_metadata_map_from_changes(&self, changes: Vec<Value>) -> HashMap<String, Box<dyn PairMetadata>> {
+
+        println!("Building Metadata From Changes...");
+
+        let mut metadata_map: HashMap<String, Box<dyn PairMetadata>> = HashMap::new();
+
+        // \\\"{\\\"address\\\":\\\"([^"]+)\\\"(.*)\{\\\"type\\\":\\\"([^"]+)\\\"(.*)\\\"reserve_x\\\":\\\"([^"]+)\\\"(.*)\\\"reserve_y\\\":\\\"([^"]+)\\\"(.*)/gm
+
+        for change in changes {
+            let re = Regex::new(r#""address":"([^"]+)".*?"type":"([^"]+)".*?"reserve_x":"([^"]+)".*?"reserve_y":"([^"]+)""#).unwrap();
+            
+            if let Some(captures) = re.captures(change.to_string().as_str()){
+                if let (Some(address), Some(type_str), Some(reserve_x), Some(reserve_y)) = (
+                    captures.get(1).map(|m| m.as_str()),
+                    captures.get(2).map(|m| m.as_str()),
+                    captures.get(3).map(|m| m.as_str()),
+                    captures.get(4).map(|m| m.as_str())
+                ) {
+                    let token_names = String::from(&type_str[90..]);
+                    let res_x = reserve_x.parse::<u64>().unwrap();
+                    let res_y = reserve_x.parse::<u64>().unwrap();
+
+                    let metadata = PancakeMetadata {
+                        reserves: Some(vec![res_x, res_y])
+                    };
+        
+                    metadata_map.insert(token_names.clone(), Box::new(metadata));
+                }
+            }
+        }
+
+
+        return metadata_map;
     }
 }
 

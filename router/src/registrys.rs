@@ -16,9 +16,21 @@ pub mod pancake_registry;
 #[async_trait]
 pub trait Registry: Send + Sync {
     fn module_address(&self) -> &str;
-    fn protocol(&self) -> &str;
+    fn protocol(&self) -> PairNames;
     async fn get_pairs(&self, network: &Network) -> Vec<Box<dyn Pair>>;
     async fn get_metadata(&self, network: &Network, metadata_map: &mut HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> >);
+    fn build_metadata_map_from_changes(&self, changes: Vec<Value>) -> HashMap<String, Box<dyn PairMetadata>>;
+}
+
+pub fn build_metadata_map_from_changes(registrys: &Vec<Box<dyn Registry>>, changes: Vec<Value>) -> HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> > {
+    let mut metadata_map: HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> > = HashMap::new();
+
+    for registry in registrys {
+        let protocol_metadata_map = registry.build_metadata_map_from_changes(changes.clone());
+        metadata_map.insert(PairNames::PancakePair, protocol_metadata_map);
+    }
+
+    metadata_map
 }
 
 pub fn get_all_registerys_from_json(network: &Network) -> Vec<Box<dyn Registry>> {
