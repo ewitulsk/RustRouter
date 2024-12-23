@@ -2,6 +2,8 @@ use std::{collections::HashMap, rc::Rc, cell::RefCell};
 
 use serde_json::{self, Value};
 
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use crate::{
     types::{Network},
     pairs::{Pair, PairNames, 
@@ -23,6 +25,11 @@ pub trait Registry: Send + Sync {
 }
 
 pub fn build_metadata_map_from_changes(registrys: &Vec<Box<dyn Registry>>, changes: Vec<Value>) -> HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> > {
+    let start_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+
     let mut metadata_map: HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> > = HashMap::new();
 
     for registry in registrys {
@@ -30,11 +37,18 @@ pub fn build_metadata_map_from_changes(registrys: &Vec<Box<dyn Registry>>, chang
         metadata_map.insert(PairNames::PancakePair, protocol_metadata_map);
     }
 
+    let end_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+
+    println!("Took {:?} ms to build changes.", end_ms - start_ms);
+
     metadata_map
 }
 
 pub fn get_all_registerys_from_json(network: &Network) -> Vec<Box<dyn Registry>> {
-    let json = serde_json::from_str::<Vec<Value>>(include_str!("../../registerys.json")).unwrap();
+    let json = serde_json::from_str::<Vec<Value>>(include_str!("../registerys.json")).unwrap();
     
     let pancake_registry_val = json.iter().find(|x| x["protocol"] == "pancake" && x["network"] == network.name).unwrap().clone();
     let pancake_registry = Box::new(serde_json::from_value::<PancakeRegistry>(pancake_registry_val).unwrap()) as Box<dyn Registry>;
@@ -123,8 +137,21 @@ pub fn update_pairs(pairs: &mut Vec<Rc<RefCell<Box<dyn Pair>>>>, metadata_map: &
                 let pancake_metadata_map = &*metadata_map.get(&PairNames::PancakePair).unwrap();
 
                 let identifier = format!("<{}, {}>", pancake_pair.token_arr[0], pancake_pair.token_arr[1]);
+                
                 if pancake_metadata_map.contains_key(&identifier) {
                     let pancake_metadata: &PancakeMetadata = &*(*(pancake_metadata_map.get(&identifier).unwrap())).as_any().downcast_ref::<PancakeMetadata>().unwrap();
+                    
+                    let temp_res = pancake_metadata.reserves.clone().unwrap();
+                    let res_x = temp_res.get(0).unwrap();
+                    let res_y = temp_res.get(1).unwrap();
+                    
+
+                    if(pancake_pair.metadata.reserves.is_some()){
+                        let old_temp_res = pancake_pair.metadata.reserves.clone().unwrap();
+                        let old_res_x = old_temp_res.get(0).unwrap();
+                        let old_res_y = old_temp_res.get(1).unwrap();
+                    }  
+                    
                     pancake_pair.metadata = pancake_metadata.clone();
                 }
             } 

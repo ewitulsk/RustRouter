@@ -159,7 +159,7 @@ async fn main() {
             });
 
             loop {
-                match tothread_updater_rx.recv() {
+                match tothread_updater_rx.recv_timeout(Duration::from_millis(100)) {
                     Ok(message) => {
                         match message.channel_tx {
                             Some(channel_tx) => {
@@ -176,9 +176,10 @@ async fn main() {
                             }
                             None => {}
                         }
-                    }
-                    Err(RecvError) => {
-                        println!("Disconnected");
+                    },
+                    Err(RecvTimeoutError::Timeout) => {}
+                    Err(RecvTimeoutError::Disconnected) => {
+                        println!("Disconnected")
                     }
                 }
                 

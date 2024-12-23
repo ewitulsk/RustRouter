@@ -165,7 +165,7 @@ impl Registry for PancakeRegistry {
                 ) {
                     let token_names = String::from(&type_str[90..]);
                     let res_x = reserve_x.parse::<u64>().unwrap();
-                    let res_y = reserve_x.parse::<u64>().unwrap();
+                    let res_y = reserve_y.parse::<u64>().unwrap();
 
                     let metadata = PancakeMetadata {
                         reserves: Some(vec![res_x, res_y])
