@@ -5,15 +5,13 @@ use serde_json::{self, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-    types::{Network},
-    pairs::{Pair, PairNames, 
-        pancake_pair::{PancakeMetadata, PancakePair}, PairMetadata},
-    registrys::pancake_registry::PancakeRegistry
+    pairs::{liquidswap_pair::{self, LiquidswapMetadata, LiquidswapPair}, pancake_pair::{PancakeMetadata, PancakePair}, Pair, PairMetadata, PairNames}, registrys::{liquidswap_registry::LiquidswapRegistry, pancake_registry::PancakeRegistry}, types::Network
 };
 
 use async_trait::async_trait;
 
 pub mod pancake_registry;
+pub mod liquidswap_registry;
 
 #[async_trait]
 pub trait Registry: Send + Sync {
@@ -34,7 +32,7 @@ pub fn build_metadata_map_from_changes(registrys: &Vec<Box<dyn Registry>>, chang
 
     for registry in registrys {
         let protocol_metadata_map = registry.build_metadata_map_from_changes(changes.clone());
-        metadata_map.insert(PairNames::PancakePair, protocol_metadata_map);
+        metadata_map.insert(registry.protocol(), protocol_metadata_map);
     }
 
     let end_ms = SystemTime::now()
@@ -53,7 +51,10 @@ pub fn get_all_registerys_from_json(network: &Network) -> Vec<Box<dyn Registry>>
     let pancake_registry_val = json.iter().find(|x| x["protocol"] == "pancake" && x["network"] == network.name).unwrap().clone();
     let pancake_registry = Box::new(serde_json::from_value::<PancakeRegistry>(pancake_registry_val).unwrap()) as Box<dyn Registry>;
 
-    let registrys = vec![pancake_registry];
+    let liquidswap_registry_val = json.iter().find(|x| x["protocol"] == "liquidswap_constant_product" && x["network"] == network.name).unwrap().clone();
+    let liquidswap_registry = Box::new(serde_json::from_value::<LiquidswapRegistry>(liquidswap_registry_val).unwrap()) as Box<dyn Registry>;
+
+    let registrys = vec![pancake_registry, liquidswap_registry];
     return registrys;
 }
 
@@ -155,6 +156,26 @@ pub fn update_pairs(pairs: &mut Vec<Rc<RefCell<Box<dyn Pair>>>>, metadata_map: &
                     pancake_pair.metadata = pancake_metadata.clone();
                 }
             } 
+
+            "liquidswap_constant_product" => {
+                let mut pair = &mut *pair.as_any_mut().downcast_mut::<LiquidswapPair>().unwrap();
+
+                let liquid_metadata_map = &*metadata_map.get(&PairNames::LiquidswapPair).unwrap();
+
+                let curve = if pair.curve_type == liquidswap_pair::CurveType::Uncorrelated {"Uncorrelated"} else {"Stable"};
+
+                let identifier = format!("{},{},{}", pair.token_arr[0], pair.token_arr[1], curve);
+                
+                if liquid_metadata_map.contains_key(&identifier) {
+                    let metadata: &LiquidswapMetadata = &*(*(liquid_metadata_map.get(&identifier).unwrap())).as_any().downcast_ref::<LiquidswapMetadata>().unwrap();
+                    
+                    let temp_res = metadata.reserves.clone();
+                    let res_x = temp_res.get(0).unwrap();
+                    let res_y = temp_res.get(1).unwrap();
+                    
+                    pair.metadata = metadata.clone();
+                }
+            }
 
             &_ => {
 

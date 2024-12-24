@@ -140,14 +140,12 @@ impl Registry for PancakeRegistry {
                 count += 1;
             }
         }
-        println!("Total: {}", count);
-
         metadata_map.insert(PairNames::PancakePair, pancake_map);
     }
 
     fn build_metadata_map_from_changes(&self, changes: Vec<Value>) -> HashMap<String, Box<dyn PairMetadata>> {
 
-        println!("Building Metadata From Changes...");
+        println!("Building Pancake Metadata From Changes...");
 
         let mut metadata_map: HashMap<String, Box<dyn PairMetadata>> = HashMap::new();
 
@@ -164,6 +162,7 @@ impl Registry for PancakeRegistry {
                     captures.get(4).map(|m| m.as_str())
                 ) {
                     let token_names = String::from(&type_str[90..]);
+                    println!("Token Names: {}", token_names);
                     let res_x = reserve_x.parse::<u64>().unwrap();
                     let res_y = reserve_y.parse::<u64>().unwrap();
 

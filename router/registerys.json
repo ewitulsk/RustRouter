@@ -3,5 +3,11 @@
         "network": "aptos_mainnet",
         "protocol": "pancake",
         "module_address": "0xc7efb4076dbe143cbcd98cfaaa929ecfc8f299203dfff63b95ccb6bfe19850fa"
+    },
+    {
+        "network": "aptos_mainnet",
+        "protocol": "liquidswap_constant_product",
+        "pool_address": "0x163df34fccbf003ce219d3f1d9e70d140b60622cb9dd47599c25fb2f797ba6e",
+        "module_address": "0x61d2c22a6cb7831bee0f48363b0eec92369357aece0d1142062f7d5d85c7bef8"
     }
 ]

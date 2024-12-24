@@ -51,13 +51,15 @@ async fn initalize_router(network: &Network) -> (
     HashMap<String, Vec<Rc<RefCell<Box<(dyn Pair + 'static)>>>>>, //pairs_by_token
 ) {
     let mut registry_vec = get_all_registerys_from_json(network);
-    let pancake_metadata_map: HashMap<String, Box<dyn PairMetadata>> = HashMap::new();
+    println!("Registry Vec: {:?}", registry_vec.len());
 
     let mut metadata_map: HashMap<PairNames, HashMap<String, Box<dyn PairMetadata>> > = HashMap::new();
-    metadata_map.insert(PairNames::PancakePair, pancake_metadata_map);
+    metadata_map.insert(PairNames::PancakePair, HashMap::new());
+    metadata_map.insert(PairNames::LiquidswapPair, HashMap::new());
 
     let gen_pairs_result = gen_all_pairs(network, &mut registry_vec).await;
     let mut genned_pairs = gen_pairs_result.0;
+    println!("Genned Pairs: {:?}", genned_pairs.len());
     let pairs_by_token = gen_pairs_result.1;
 
     return (registry_vec, metadata_map, genned_pairs, pairs_by_token);
