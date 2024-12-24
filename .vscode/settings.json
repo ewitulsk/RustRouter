@@ -1,0 +1,11 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./router/Cargo.toml",
+        "./router/Cargo.toml",
+        "./router/Cargo.toml",
+        "./router/Cargo.toml"
+    ],
+    "rust-analyzer.server.extraEnv": {
+        "RUSTFLAGS": "--cfg tokio_unstable"
+    },
+}

@@ -4,12 +4,13 @@ use serde::{Serialize, Deserialize};
 use erased_serde::serialize_trait_object;
 
 pub mod pancake_pair;
+pub mod liquidswap_pair;
 
-pub trait PairMetadata {
+pub trait PairMetadata: Send + Sync {
     fn as_any(&self) -> &dyn Any;
 }
 
-pub trait Pair {
+pub trait Pair: Send + Sync {
     fn output_amount(&self, input_amount: u64, token_in: &String, token_out: &String) -> u64;
     fn get_descriptor(&self) -> Box<dyn Descriptor>;
     fn get_protocol(&self) -> &str;
@@ -25,7 +26,8 @@ serialize_trait_object!(Descriptor);
 
 #[derive(Serialize, Deserialize, Clone, Eq, Hash, PartialEq)]
 pub enum PairNames {
-    PancakePair
+    PancakePair,
+    LiquidswapPair
 }
 
 

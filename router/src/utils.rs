@@ -2,8 +2,11 @@ use std::{fs};
 use std::collections::HashMap;
 
 use serde::{Deserialize, Deserializer};
+use serde_json::{json, Value};
 use anyhow::{Result, anyhow, Ok};
-use reqwest::blocking::{Client, Response};
+// use reqwest::blocking::{Client, Response};
+use reqwest::{Client, Response};
+use reqwest;
 
 use crate::types::{Network, NetworkReference};
 
@@ -88,7 +91,7 @@ where
     s.parse::<u128>().map_err(serde::de::Error::custom)
 }
 
-pub fn query_aptos_events_raw(
+pub async fn query_aptos_events_raw(
     network_address: &str,
     account: &str,
     event: &str,
@@ -115,10 +118,10 @@ pub fn query_aptos_events_raw(
 
     let client = Client::new();
 
-    let resp: Response = client.get(query).send().unwrap();
+    let resp: Response = client.get(query).send().await.unwrap();
     let mut body: String = String::new();
     if resp.status().is_success() {
-        body = resp.text().unwrap();
+        body = resp.text().await.unwrap();
         // println!("{}", body);
     }
     else {
@@ -128,7 +131,7 @@ pub fn query_aptos_events_raw(
    
 }
 
-pub fn query_aptos_resources_all_raw(
+pub async fn query_aptos_resources_all_raw(
     network_address: &str,
     account: &str,
 ) -> String {
@@ -141,10 +144,10 @@ pub fn query_aptos_resources_all_raw(
 
     let client = Client::new();
 
-    let resp: Response = client.get(query).send().unwrap();
+    let resp: Response = client.get(query).send().await.unwrap();
     let mut body: String = String::new();
     if resp.status().is_success() {
-        body = resp.text().unwrap();
+        body = resp.text().await.unwrap();
         // println!("{}", body);
     }
     else {
@@ -152,6 +155,37 @@ pub fn query_aptos_resources_all_raw(
     }
     return body;
    
+}
+
+pub async fn query_aptos_transactions_by_version(network_address: &str, start: u64, limit: u16) -> Vec<Value> {
+    let query = format!("{}/transactions/?start={}&limit={}", network_address, start, limit);
+    let client = Client::new();
+    
+    let resp: Response = client.get(query).send().await.unwrap();
+    let mut jsn: Value = Value::Null;
+    if resp.status().is_success() {
+        jsn = serde_json::from_str(&resp.text().await.unwrap()).unwrap();
+    }
+    else if resp.status() == 400{
+        return Vec::new();
+    }
+    else {
+        println!("Faild with status code: {}", resp.status());
+    }
+    return jsn.as_array().unwrap().to_vec();
+}
+
+pub async fn get_aptos_version(network_address: &str) -> Result<u64> {
+    let query = format!("{}", network_address);
+    let client = Client::new();
+    let resp: Response = client.get(query).send().await.unwrap();
+    if resp.status().is_success() {
+        let jsn: Value = serde_json::from_str(&resp.text().await.unwrap()).unwrap();
+        println!("{}", jsn);
+        let version = jsn.get("ledger_version").unwrap().as_str().unwrap().parse::<u64>().unwrap();
+        return Ok(version);
+    }
+    return Err(anyhow!("Failed to get version"));
 }
 
 pub fn get_network(name: String) -> Result<Network> {
